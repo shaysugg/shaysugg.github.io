@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>
+    
+      Download Manager - URLSession and Swift Modern Concurrency - Part 1
+    
+  </title>
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Download Manager - URLSession and Swift Modern Concurrency - Part 1" />
+<meta name="author" content="Riccardo Graziosi" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Apparently URLSession used to be so hard to work with. Many people preferred using third-party network tools like AFNetworking or Alamofire. However over the past years it has its improvements. Two notable improvements are its Combine and async await equivalents APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others. Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this: ```swift struct DownloadManager { let downloadSession = URLSession.shared" />
+<meta property="og:description" content="Apparently URLSession used to be so hard to work with. Many people preferred using third-party network tools like AFNetworking or Alamofire. However over the past years it has its improvements. Two notable improvements are its Combine and async await equivalents APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others. Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this: ```swift struct DownloadManager { let downloadSession = URLSession.shared" />
+<link rel="canonical" href="/2024/04/06/DownloadManager1.html" />
+<meta property="og:url" content="/2024/04/06/DownloadManager1.html" />
+<meta property="og:site_name" content="devbashayan" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-04-06T00:00:00+03:30" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Download Manager - URLSession and Swift Modern Concurrency - Part 1" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Riccardo Graziosi"},"dateModified":"2024-04-06T00:00:00+03:30","datePublished":"2024-04-06T00:00:00+03:30","description":"Apparently URLSession used to be so hard to work with. Many people preferred using third-party network tools like AFNetworking or Alamofire. However over the past years it has its improvements. Two notable improvements are its Combine and async await equivalents APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others. Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this: ```swift struct DownloadManager { let downloadSession = URLSession.shared","headline":"Download Manager - URLSession and Swift Modern Concurrency - Part 1","mainEntityOfPage":{"@type":"WebPage","@id":"/2024/04/06/DownloadManager1.html"},"url":"/2024/04/06/DownloadManager1.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="/feed.xml" title="devbashayan" />
+
+  <link rel="shortcut icon" type="image/x-icon" href="/./logo.png" />
+  <link rel="stylesheet" href="/assets/css/main.css" />
+</head><body a="auto">
+    <main class="page-content" aria-label="Content">
+        <div class="w">
+            <a href="">..</a>
+<h1>Download Manager - URLSession and Swift Modern Concurrency - Part 1</h1>
+<p>Apparently URLSession used to be so hard to work with. Many people preferred using third-party network tools like <a href="https://github.com/AFNetworking/AFNetworking">AFNetworking</a> or <a href="https://github.com/Alamofire/Alamofire">Alamofire</a>. However over the past years it has its improvements. Two notable improvements are its Combine and async await equivalents APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others.
+Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadManager</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">downloadSession</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="o">.</span><span class="n">shared</span>
+
+  <span class="kd">func</span> <span class="nf">download</span><span class="p">(</span><span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="k">async</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">URL</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="p">(</span><span class="nv">url</span><span class="p">,</span> <span class="nv">_</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span>
+      <span class="nv">for</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">url</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>This is totally fine for simple use cases, But most of the times specially for big files we want to track the download progress. Either for our logging and diagnostics or displaying the progress to the user.</p>
+<h2 id="getting-the-download-progress">Getting the download progress</h2>
+<p>Of course I had to use delegates. sigh. This <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code> method</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didWriteData</span> <span class="nv">bytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesExpectedToWrite</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span>
+</code></pre></div></div>
+<p>Consequently, I changed my download manager from a struct to a class because It needed to inherit from <code class="language-plaintext highlighter-rouge">NSObject</code> to conform to <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code>. Additionally I assigned the <code class="language-plaintext highlighter-rouge">DownloadManager</code> class as my download session delegate.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+  <span class="kd">lazy</span> <span class="kd">private</span> <span class="k">var</span> <span class="nv">downloadSession</span><span class="p">:</span> <span class="kt">URLSession</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">session</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="p">(</span>
+      <span class="nv">configuration</span><span class="p">:</span> <span class="o">.</span><span class="k">default</span><span class="p">,</span>
+      <span class="nv">delegate</span><span class="p">:</span> <span class="n">downloadDelegate</span><span class="p">,</span>
+      <span class="nv">delegateQueue</span><span class="p">:</span> <span class="kc">nil</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span>
+	<span class="p">}()</span>
+
+	<span class="c1">//...</span>
+
+	<span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didWriteData</span> <span class="nv">bytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesExpectedToWrite</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="p">{</span>
+	<span class="c1">//progress can be found here!</span>
+	<span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Also, note that <mark>when you assign a delegate to your URLSession configuration, all the completion handler of your data tasks no longer work</mark>. You have to use <code class="language-plaintext highlighter-rouge">downloadTask(with: URLRequest(url: url))</code> in order to be able to track the download progress. This <em>unfortunately</em> also means that you have to find if the download was successful or not within those delegate methods.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+	<span class="c1">// ....</span>
+	
+  <span class="kd">func</span> <span class="nf">download</span><span class="p">(</span><span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// this won't report the progress </span>
+    <span class="k">let</span> <span class="p">(</span><span class="nv">url</span><span class="p">,</span> <span class="nv">_</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span>
+    <span class="nv">for</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+    <span class="c1">// instead have to use this</span>
+    <span class="n">downloadSession</span><span class="o">.</span><span class="nf">downloadTask</span><span class="p">(</span><span class="nv">with</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+    <span class="c1">// this function is not async anymore</span>
+    <span class="c1">// i can't simply return the downloaded url from here</span>
+    <span class="c1">// :(</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didFinishDownloadingTo</span> <span class="nv">location</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">//figure out the download location belongs to which download task</span>
+    <span class="c1">//by probably checking the task id?</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span> <span class="n">didCompleteWithError</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="p">{</span>
+    <span class="c1">//same id checking for figuring out download errors</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Well that certainly bring back bitter nostalgia and instantly throw me out of our beautiful async await world. Our beloved <code class="language-plaintext highlighter-rouge">func download(from url: URL) async throws -&gt; URL</code> <strong>pure function</strong> is gone. So how do I to report the downloading progress to the others that are using my <code class="language-plaintext highlighter-rouge">DownloadManager</code>? By defining my own custom delegates? But what about my pure function with async await? Wouldn’t it be nice to return an <em>iteration that others can listen to and receive the progress update events asynchronously</em>?</p>
+<h2 id="async-await-adaptor">async await Adaptor</h2>
+<p>Well, asynchronous iteration! This is certeinly a use case for <code class="language-plaintext highlighter-rouge">AsyncStream</code> but sometimes we may only be interested in the final download result. So I decided to define a specific type for my download operation and return that back.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="kd">private</span> <span class="k">let</span> <span class="nv">progressSubjects</span> <span class="o">=</span> <span class="kt">CurrentValueSubject</span><span class="o">&lt;</span><span class="kt">Double</span><span class="p">,</span> <span class="kt">Never</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+  <span class="kd">private</span> <span class="k">let</span> <span class="nv">resultsSubjects</span> <span class="o">=</span> <span class="kt">PassthroughSubject</span><span class="o">&lt;</span><span class="kt">URL</span><span class="p">,</span> <span class="kt">Error</span><span class="o">&gt;</span><span class="p">()</span>
+
+  <span class="k">var</span> <span class="nv">progressPublisher</span><span class="p">:</span> <span class="kt">AsyncThrowingPublisher</span><span class="o">&lt;</span><span class="kt">AnyPublisher</span><span class="o">&lt;</span><span class="kt">Double</span><span class="p">,</span> <span class="kt">Never</span><span class="o">&gt;&gt;</span> <span class="p">{</span>
+    <span class="n">progressSubjects</span><span class="o">.</span><span class="nf">eraseToAnyPublisher</span><span class="p">()</span><span class="o">.</span><span class="n">values</span>
+  <span class="p">}</span>
+	
+  <span class="kd">func</span> <span class="nf">result</span><span class="p">()</span> <span class="k">async</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">URL</span><span class="p">?</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="k">try</span> <span class="k">await</span> <span class="n">result</span> <span class="k">in</span> <span class="n">resultsSubjects</span><span class="o">.</span><span class="n">values</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="n">result</span>
+    <span class="p">}</span>
+    <span class="nf">preconditionFailure</span><span class="p">(</span><span class="s">"Should finish with at least one value"</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>I identified each download task with an ID and stored download tasks with their ids in a dictionary within my <code class="language-plaintext highlighter-rouge">DownloadManager</code>. For progress changes or download completions and failures I search for the corresponding download task in this dictionary and update it it to reflect those changes.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">typealias</span> <span class="kt">DownloadTaskID</span> <span class="o">=</span> <span class="kt">Int</span>
+
+<span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+  <span class="kd">private</span> <span class="k">var</span> <span class="nv">downloads</span><span class="p">:</span> <span class="p">[</span><span class="kt">DownloadTaskID</span><span class="p">:</span> <span class="kt">DownloadTask</span><span class="p">]</span> <span class="o">=</span> <span class="p">[:]</span>
+	
+  <span class="kd">func</span> <span class="nf">download</span><span class="p">(</span><span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+    <span class="c1">//create a download task and store it and then start the task</span>
+    <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">downloadTask</span><span class="p">(</span><span class="nv">with</span><span class="p">:</span> <span class="kt">URLReque</span>    <span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+    <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="kt">DownloadTask</span><span class="p">()</span>
+    <span class="n">task</span><span class="o">.</span><span class="nf">resume</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">downloadTask</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>I used <code class="language-plaintext highlighter-rouge">Combine</code> subjects for progress and completion handlers, along with some helper methods for sending the correct events to those subjects.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">extension</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="kd">func</span> <span class="nf">finish</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">progressSubjects</span><span class="o">.</span><span class="nf">send</span><span class="p">(</span><span class="nv">completion</span><span class="p">:</span> <span class="o">.</span><span class="n">finished</span><span class="p">)</span>
+    <span class="n">resultsSubjects</span><span class="o">.</span><span class="nf">send</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="n">resultsSubjects</span><span class="o">.</span><span class="nf">send</span><span class="p">(</span><span class="nv">completion</span><span class="p">:</span> <span class="o">.</span><span class="n">finished</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">finish</span><span class="p">(</span><span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">progressSubjects</span><span class="o">.</span><span class="nf">send</span><span class="p">(</span><span class="nv">completion</span><span class="p">:</span> <span class="o">.</span><span class="n">finished</span><span class="p">)</span>
+    <span class="n">resultsSubjects</span><span class="o">.</span><span class="nf">send</span><span class="p">(</span><span class="nv">completion</span><span class="p">:</span> <span class="o">.</span><span class="nf">failure</span><span class="p">(</span><span class="n">error</span><span class="p">))</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">setProgress</span><span class="p">(</span><span class="n">_</span> <span class="nv">progress</span><span class="p">:</span> <span class="kt">Double</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">progressSubjects</span><span class="o">.</span><span class="nf">send</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Note that I didn’t expose any combine APIs externally, so the users of our class don’t have to import it. This makes it easier to use our code across multiple codebases.</p>
+
+<p>Here is the implementation of our <code class="language-plaintext highlighter-rouge">DownloadManager</code> so far</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+  <span class="kd">private</span> <span class="k">var</span> <span class="nv">downloads</span><span class="p">:</span> <span class="p">[</span><span class="kt">DownloadTaskID</span><span class="p">:</span> <span class="kt">DownloadTask</span><span class="p">]</span> <span class="o">=</span> <span class="p">[:]</span>
+	
+  <span class="kd">func</span> <span class="nf">download</span><span class="p">(</span><span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">downloadTask</span><span class="p">(</span>
+		<span class="nv">with</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+    <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="kt">DownloadTask</span><span class="p">()</span>
+    <span class="n">task</span><span class="o">.</span><span class="nf">resume</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">downloadTask</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didWriteData</span> <span class="nv">bytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesExpectedToWrite</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">//find the download task and updqate the progress</span>
+    <span class="k">let</span> <span class="nv">progress</span> <span class="o">=</span> <span class="kt">Double</span><span class="p">(</span><span class="n">totalBytesWritten</span><span class="p">)</span> <span class="o">/</span> <span class="kt">Doub</span>    <span class="p">(</span><span class="n">totalBytesExpectedToWrite</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">download</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">downloadTask</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span>
+    <span class="n">download</span><span class="p">?</span><span class="o">.</span><span class="nf">setProgress</span><span class="p">(</span><span class="n">progress</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didFinishDownloadingTo</span> <span class="nv">location</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">//find the download task and finish it with success</span>
+    <span class="k">let</span> <span class="nv">download</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">downloadTask</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span>
+    <span class="k">let</span> <span class="nv">destLocation</span> <span class="o">=</span> <span class="k">try!</span> <span class="nf">moveToDownloads</span><span class="p">(</span><span class="nv">fileURL</span><span class="p">:</span> <span class="n">location</span><span class="p">)</span>
+    <span class="n">download</span><span class="p">?</span><span class="o">.</span><span class="nf">finish</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">destLocation</span><span class="p">)</span>
+    <span class="n">downloads</span><span class="o">.</span><span class="nf">removeValue</span><span class="p">(</span><span class="nv">forKey</span><span class="p">:</span> <span class="n">downloadTask</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">)</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span> <span class="n">didCompleteWithError</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="p">{</span>
+    <span class="c1">//find the download task and finish it with failure</span>
+    <span class="k">let</span> <span class="nv">download</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span>
+    <span class="n">download</span><span class="p">?</span><span class="o">.</span><span class="nf">finish</span><span class="p">(</span><span class="nv">error</span><span class="p">:</span> <span class="n">error</span><span class="p">)</span>
+    <span class="n">downloads</span><span class="o">.</span><span class="nf">removeValue</span><span class="p">(</span><span class="nv">forKey</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>And here is an example of its usage</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">downloadSomething</span><span class="p">(</span><span class="k">for</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">DownloadTask</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">downloadTask</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fileDownloader</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span>
+    <span class="nv">from</span><span class="p">:</span> <span class="n">somethingURL</span><span class="p">)</span>
+  <span class="kt">Task</span> <span class="p">{</span>
+    <span class="k">for</span> <span class="k">try</span> <span class="k">await</span> <span class="n">progress</span> <span class="k">in</span> <span class="n">downloadTask</span><span class="o">.</span><span class="n">progressPublisher</span> <span class="p">{</span>
+      <span class="c1">//here you have the download progress</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+  <span class="kt">Task</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">downloadedURL</span> <span class="o">=</span> <span class="k">try</span> <span class="k">await</span> <span class="n">downloadTask</span><span class="o">.</span><span class="nf">result</span><span class="p">()</span>
+    <span class="c1">//here you have the download result</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>But we’re not finished yet! I will explain the rest of it in the two upcoming articles. In the next article I will explain how we can <strong>cancel and resume</strong> downloads.
+If you’re bored with all of this implementation details and want to instantly jump and take a look at the final code, I’ve uploaded it on <a href="https://gist.github.com/shaysugg/8def3de858038eccf1ab2860424336e0">Gist</a>.</p>
+
+<p>Thank you for reading,</p>
+
+<p>Cheers!</p>
+
+
+        </div>
+    </main>
+
+    
+    </body>
+</html>
