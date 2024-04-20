@@ -4,9 +4,6 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <meta property="og:title" content="Download Manager - URLSession and Swift Modern Concurrency - Part 1">
-  <meta property="og:image" content="https://shaysugg.github.io//attachments/DownloadManager1.png">
-
   <title>
     
     Download Manager - URLSession and Swift Modern Concurrency - Part 1
@@ -23,14 +20,14 @@
 <link rel="canonical" href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html" />
 <meta property="og:url" content="https://shaysugg.github.io//2024/04/06/DownloadManager1.html" />
 <meta property="og:site_name" content="devbashayan" />
-<meta property="og:image" content="https://shaysugg.github.io//DownloadManager1.png" />
+<meta property="og:image" content="https://shaysugg.github.io//assets/DownloadManager1.png" />
 <meta property="og:type" content="article" />
 <meta property="article:published_time" content="2024-04-06T00:00:00+03:30" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta property="twitter:image" content="https://shaysugg.github.io//DownloadManager1.png" />
+<meta property="twitter:image" content="https://shaysugg.github.io//assets/DownloadManager1.png" />
 <meta property="twitter:title" content="Download Manager - URLSession and Swift Modern Concurrency - Part 1" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Riccardo Graziosi"},"dateModified":"2024-04-06T00:00:00+03:30","datePublished":"2024-04-06T00:00:00+03:30","description":"Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like AFNetworking or Alamofire. However over the past years it has its improvements. Two of its notable improvements can be the Combine and async await equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others. Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this: ```swift struct DownloadManager { let downloadSession = URLSession.shared","headline":"Download Manager - URLSession and Swift Modern Concurrency - Part 1","image":"https://shaysugg.github.io//DownloadManager1.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/04/06/DownloadManager1.html"},"url":"https://shaysugg.github.io//2024/04/06/DownloadManager1.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Riccardo Graziosi"},"dateModified":"2024-04-06T00:00:00+03:30","datePublished":"2024-04-06T00:00:00+03:30","description":"Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like AFNetworking or Alamofire. However over the past years it has its improvements. Two of its notable improvements can be the Combine and async await equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others. Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this: ```swift struct DownloadManager { let downloadSession = URLSession.shared","headline":"Download Manager - URLSession and Swift Modern Concurrency - Part 1","image":"https://shaysugg.github.io//assets/DownloadManager1.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/04/06/DownloadManager1.html"},"url":"https://shaysugg.github.io//2024/04/06/DownloadManager1.html"}</script>
 <!-- End Jekyll SEO tag -->
 
   <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
@@ -48,8 +45,7 @@ Despite the improvements, I faced a few challenges while building a download man
   <span class="k">let</span> <span class="nv">downloadSession</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="o">.</span><span class="n">shared</span>
 
   <span class="kd">func</span> <span class="nf">download</span><span class="p">(</span><span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="k">async</span> <span class="k">throws</span> <span class="o">-&gt;</span> <span class="kt">URL</span> <span class="p">{</span>
-    <span class="k">let</span> <span class="p">(</span><span class="nv">url</span><span class="p">,</span> <span class="nv">_</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span>
-      <span class="nv">for</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+    <span class="k">let</span> <span class="p">(</span><span class="nv">url</span><span class="p">,</span> <span class="nv">_</span><span class="p">)</span> <span class="o">=</span> <span class="k">try</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span><span class="nv">for</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
     <span class="k">return</span> <span class="n">url</span>
   <span class="p">}</span>
 <span class="p">}</span>
@@ -192,9 +188,8 @@ Despite the improvements, I faced a few challenges while building a download man
 <span class="p">}</span>
 </code></pre></div></div>
 <p>And here is an example of its usage</p>
-<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">downloadSomething</span><span class="p">(</span><span class="k">for</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">DownloadTask</span><span class="p">)</span> <span class="p">{</span>
-  <span class="k">let</span> <span class="nv">downloadTask</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fileDownloader</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span>
-    <span class="nv">from</span><span class="p">:</span> <span class="n">somethingURL</span><span class="p">)</span>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">downloadSomething</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">downloadTask</span> <span class="o">=</span> <span class="n">fileDownloader</span><span class="o">.</span><span class="nf">download</span><span class="p">(</span><span class="nv">from</span><span class="p">:</span> <span class="n">somethingURL</span><span class="p">)</span>
   <span class="kt">Task</span> <span class="p">{</span>
     <span class="k">for</span> <span class="k">try</span> <span class="k">await</span> <span class="n">progress</span> <span class="k">in</span> <span class="n">downloadTask</span><span class="o">.</span><span class="n">progressPublisher</span> <span class="p">{</span>
       <span class="c1">//here you have the download progress</span>
