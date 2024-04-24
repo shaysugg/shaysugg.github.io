@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>
+    
+    Download Manager - Part 2 - Pausing and resuming download tasks
+    
+  </title>
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Download Manager - Part 2 - Pausing and resuming download tasks" />
+<meta name="author" content="Shayan Barghaman" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="In the previous article I explained how I built a DownloadManager that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally. It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning. According to the docs, when a download is canceled it may return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later. Identifying DownloadTasks To integrate resuming data caching into the download manager, First let’s pass the URLSessionTask to our DownloadTask upon its initialization. ```swift struct DownloadTask { let urlSessionTask: URLSessionDownloadTask" />
+<meta property="og:description" content="In the previous article I explained how I built a DownloadManager that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally. It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning. According to the docs, when a download is canceled it may return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later. Identifying DownloadTasks To integrate resuming data caching into the download manager, First let’s pass the URLSessionTask to our DownloadTask upon its initialization. ```swift struct DownloadTask { let urlSessionTask: URLSessionDownloadTask" />
+<link rel="canonical" href="https://shaysugg.github.io//2024/04/21/DownloadManager2.html" />
+<meta property="og:url" content="https://shaysugg.github.io//2024/04/21/DownloadManager2.html" />
+<meta property="og:site_name" content="devbashayan" />
+<meta property="og:image" content="https://shaysugg.github.io//assets/DownloadManager1.png" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-04-21T00:00:00+03:30" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta property="twitter:image" content="https://shaysugg.github.io//assets/DownloadManager1.png" />
+<meta property="twitter:title" content="Download Manager - Part 2 - Pausing and resuming download tasks" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan Barghaman"},"dateModified":"2024-04-21T00:00:00+03:30","datePublished":"2024-04-21T00:00:00+03:30","description":"In the previous article I explained how I built a DownloadManager that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally. It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning. According to the docs, when a download is canceled it may return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later. Identifying DownloadTasks To integrate resuming data caching into the download manager, First let’s pass the URLSessionTask to our DownloadTask upon its initialization. ```swift struct DownloadTask { let urlSessionTask: URLSessionDownloadTask","headline":"Download Manager - Part 2 - Pausing and resuming download tasks","image":"https://shaysugg.github.io//assets/DownloadManager1.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/04/21/DownloadManager2.html"},"url":"https://shaysugg.github.io//2024/04/21/DownloadManager2.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
+
+  <link rel="shortcut icon" type="image/x-icon" href="/./logo.png" />
+  <link rel="stylesheet" href="https://shaysugg.github.io//assets/css/main.css" />
+</head><body a="auto">
+    <main class="page-content" aria-label="Content">
+        <div class="w">
+            <a href="https://shaysugg.github.io/">home</a>
+<h1>Download Manager - Part 2 - Pausing and resuming download tasks</h1>
+<p>In the <a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">previous article</a> I explained how I built a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally.
+It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning.
+According to the <a href="https://developer.apple.com/documentation/foundation/url_loading_system/pausing_and_resuming_downloads">docs</a>, when a download is canceled it <strong>may</strong> return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later.</p>
+<h2 id="identifying-downloadtasks">Identifying DownloadTasks</h2>
+<p>To integrate resuming data caching into the download manager, First let’s pass the <code class="language-plaintext highlighter-rouge">URLSessionTask</code> to our <code class="language-plaintext highlighter-rouge">DownloadTask</code> upon its initialization.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span>
+
+  <span class="nf">init</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">self</span><span class="o">.</span><span class="n">urlSessionTask</span> <span class="o">=</span> <span class="n">urlSessionTask</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Note that the <code class="language-plaintext highlighter-rouge">DownloadTask</code> currently acts as a wrapper around the <code class="language-plaintext highlighter-rouge">URLSessionTask</code>. It is arguable that right now it’s possible to call <code class="language-plaintext highlighter-rouge">URLSessionTask</code> methods directly without needing to use our <code class="language-plaintext highlighter-rouge">DownloadManager</code>, or in other words, our download Manager is not a complete <em>proxy</em> for our <code class="language-plaintext highlighter-rouge">URLSessionTask</code>s.
+Since we are only interested in task identifier and cancelation method of <code class="language-plaintext highlighter-rouge">URLSessionTask</code> , we can make <code class="language-plaintext highlighter-rouge">URLSessionTask</code> private and only expose these functionalities outside.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span>
+  <span class="k">var</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span> <span class="p">{</span> <span class="n">urlSessionTask</span><span class="o">.</span><span class="n">taskIdentifier</span> <span class="p">}</span>
+	
+  <span class="nf">init</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">self</span><span class="o">.</span><span class="n">urlSessionTask</span> <span class="o">=</span> <span class="n">urlSessionTask</span>
+  <span class="p">}</span>
+	
+  <span class="kd">func</span> <span class="nf">cancel</span><span class="p">()</span> <span class="k">async</span> <span class="o">-&gt;</span> <span class="kt">Data</span><span class="p">?</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">urlSessionTask</span><span class="o">.</span><span class="nf">cancelByProducingResumeData</span><span class="p">()</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>If we’re using DownloadManager as a package, it’s also better to consider <code class="language-plaintext highlighter-rouge">cancel()</code> as an <code class="language-plaintext highlighter-rouge">internal</code> method.</p>
+
+<h2 id="updating-the-downloadmanager">Updating The DownloadManager</h2>
+<p>let’s add a cancel method and a dictionary that contains cancellation resume data to our <code class="language-plaintext highlighter-rouge">DownloaodManager</code>.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+  <span class="c1">//...</span>
+  <span class="kd">private</span> <span class="k">var</span> <span class="nv">resumeData</span><span class="p">:</span> <span class="p">[</span><span class="kt">DownloadTaskID</span><span class="p">:</span> <span class="kt">Data</span><span class="p">]</span> <span class="o">=</span> <span class="p">[:]</span>
+  <span class="c1">//...</span>
+  <span class="kd">func</span> <span class="nf">cancel</span><span class="p">(</span><span class="n">taskWithID</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">id</span><span class="p">]</span> <span class="k">else</span> <span class="p">{</span> <span class="k">return</span> <span class="p">}</span>
+    <span class="n">task</span><span class="o">.</span><span class="nf">finish</span><span class="p">(</span><span class="nv">error</span><span class="p">:</span> <span class="kt">DownloadCancellation</span><span class="p">())</span>
+    <span class="n">downloads</span><span class="o">.</span><span class="nf">removeValue</span><span class="p">(</span><span class="nv">forKey</span><span class="p">:</span> <span class="n">id</span><span class="p">)</span>
+    <span class="kt">Task</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="k">let</span> <span class="nv">resumeData</span> <span class="o">=</span> <span class="k">await</span> <span class="n">task</span><span class="o">.</span><span class="nf">cancel</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">self</span><span class="o">.</span><span class="n">resumeData</span><span class="p">[</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">resumeData</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>As previously mentioned, resuming can also be useful for tasks that have been failed. let’s check if our failed tasks have resume data, and if so, store their resume datas.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+	<span class="c1">//...</span>
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span> <span class="n">didCompleteWithError</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="p">{</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">error</span> <span class="k">else</span> <span class="p">{</span> <span class="k">return</span> <span class="p">}</span>
+    <span class="k">let</span> <span class="nv">download</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span>
+    <span class="n">download</span><span class="p">?</span><span class="o">.</span><span class="nf">finish</span><span class="p">(</span><span class="nv">error</span><span class="p">:</span> <span class="n">error</span><span class="p">)</span>
+    <span class="n">downloads</span><span class="o">.</span><span class="nf">removeValue</span><span class="p">(</span><span class="nv">forKey</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">userInfo</span> <span class="o">=</span> <span class="p">(</span><span class="n">error</span> <span class="k">as</span> <span class="kt">NSError</span><span class="p">)</span><span class="o">.</span><span class="n">userInfo</span>
+    <span class="k">if</span> <span class="k">let</span> <span class="nv">resumeData</span> <span class="o">=</span> 
+    <span class="n">userInfo</span><span class="p">[</span><span class="kt">NSURLSessionDownloadTaskResumeData</span><span class="p">]</span> <span class="k">as?</span> <span class="kt">Data</span> <span class="p">{</span>
+      <span class="k">self</span><span class="o">.</span><span class="n">resumeData</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">resumeData</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>For resuming tasks we only need to find the corresponding data in our resume data dictionary and start a new URLSession task with it.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+	<span class="c1">//...</span>
+  <span class="kd">func</span> <span class="nf">resume</span><span class="p">(</span><span class="n">taskWithID</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span><span class="p">?</span> <span class="p">{</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">data</span> <span class="o">=</span> <span class="n">resumeData</span><span class="p">[</span><span class="n">id</span><span class="p">]</span> <span class="k">else</span> <span class="p">{</span> <span class="k">return</span> <span class="kc">nil</span> <span class="p">}</span>
+    <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">downloadTask</span><span class="p">(</span><span class="nv">withResumeData</span><span class="p">:</span> <span class="n">data</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">downloadTask</span> <span class="o">=</span> <span class="kt">DownloadTask</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="n">task</span><span class="p">)</span>
+    <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">downloadTask</span>
+    <span class="k">return</span> <span class="n">downloadTask</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>That’s all there is to it.</p>
+
+<p>In the next article I will explain how we can add the ability to handle background downloads.
+As a reminder, the complete Download manager implementation is available on <a href="https://gist.github.com/shaysugg/8def3de858038eccf1ab2860424336e0">Gist</a>.</p>
+
+<p>Thank you for reading,
+Cheers!</p>
+
+
+
+        </div>
+    </main>
+
+    
+    </body>
+</html>

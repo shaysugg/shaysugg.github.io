@@ -1,4 +1,285 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.3">Jekyll</generator><link href="https://shaysugg.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://shaysugg.github.io//" rel="alternate" type="text/html" /><updated>2024-04-20T12:27:18+03:30</updated><id>https://shaysugg.github.io//feed.xml</id><title type="html">devbashayan</title><subtitle>Hi and welcome! My name is Shayan and I&apos;m a software developer, Mostly develop apps and tools for iOS and macOS. </subtitle><author><name>Riccardo Graziosi</name></author><entry><title type="html">Download Manager - URLSession and Swift Modern Concurrency - Part 1</title><link href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html" rel="alternate" type="text/html" title="Download Manager - URLSession and Swift Modern Concurrency - Part 1" /><published>2024-04-06T00:00:00+03:30</published><updated>2024-04-06T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/04/06/DownloadManager1</id><content type="html" xml:base="https://shaysugg.github.io//2024/04/06/DownloadManager1.html"><![CDATA[<p>Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like <a href="https://github.com/AFNetworking/AFNetworking">AFNetworking</a> or <a href="https://github.com/Alamofire/Alamofire">Alamofire</a>. However over the past years it has its improvements. Two of its notable improvements can be the Combine and <code class="language-plaintext highlighter-rouge">async await</code> equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others.
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.3">Jekyll</generator><link href="https://shaysugg.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://shaysugg.github.io//" rel="alternate" type="text/html" /><updated>2024-04-24T16:10:28+03:30</updated><id>https://shaysugg.github.io//feed.xml</id><title type="html">devbashayan</title><subtitle>Hi and welcome! My name is Shayan and I&apos;m a software developer, Mostly develop apps and tools for iOS and macOS. </subtitle><author><name>Riccardo Graziosi</name></author><entry><title type="html">Download Manager - Part 4 - Thread safety</title><link href="https://shaysugg.github.io//2024/04/24/DownloadManager4.html" rel="alternate" type="text/html" title="Download Manager - Part 4 - Thread safety" /><published>2024-04-24T00:00:00+03:30</published><updated>2024-04-24T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/04/24/DownloadManager4</id><content type="html" xml:base="https://shaysugg.github.io//2024/04/24/DownloadManager4.html"><![CDATA[<p>For building a modern <code class="language-plaintext highlighter-rouge">DownloadManager</code> so far we’ve taken a look at</p>
+<ul>
+  <li><a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">part1: URLSession and Swift modern concurrency</a></li>
+  <li><a href="https://shaysugg.github.io//2024/04/21/DownloadManager2.html">part2: Pausing and resuming download tasks</a></li>
+  <li><a href="https://shaysugg.github.io//2024/04/24/DownloadManager3.html">part3: Background downloads</a></li>
+</ul>
+
+<p>In this article I explain how we can improve our <code class="language-plaintext highlighter-rouge">DownloadManager</code> to be safely used across different threads. In other words, make it thread-safe.</p>
+<h2 id="what-is-the-issue-with-the-current-downloadmanager">What is the issue with the current DownloadManager?</h2>
+<p>First, let’s have a high-level view of how <code class="language-plaintext highlighter-rouge">DownloadManager</code> handles its states:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+<span class="c1">//...other properties</span>
+
+<span class="c1">//state of downloads</span>
+ <span class="kd">private</span> <span class="k">var</span> <span class="nv">downloads</span><span class="p">:</span> <span class="p">[</span><span class="kt">DownloadTaskID</span><span class="p">:</span> <span class="kt">DownloadTask</span><span class="p">]</span> <span class="o">=</span><span class="p">[:]</span>
+ <span class="kd">private</span> <span class="k">var</span> <span class="nv">resumeData</span><span class="p">:</span> <span class="p">[</span><span class="kt">DownloadTaskID</span><span class="p">:</span> <span class="kt">Data</span><span class="p">]</span> <span class="o">=</span> <span class="p">[:]</span>
+
+<span class="c1">//we mutate the state from all of these bellow methods! </span>
+ <span class="kd">func</span> <span class="nf">download</span><span class="p">(</span><span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="c1">// add to downloads</span>
+<span class="p">}</span>
+
+ <span class="kd">func</span> <span class="nf">resume</span><span class="p">(</span><span class="n">taskWithID</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span><span class="p">?</span> <span class="p">{</span>
+  <span class="c1">// add to resumeData</span>
+<span class="p">}</span>
+
+ <span class="kd">private</span> <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didFinishDownloadingTo</span> <span class="nv">location</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="p">{</span>
+  <span class="c1">//remove from downloadData</span>
+<span class="p">}</span>
+
+ <span class="kd">private</span> <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span> <span class="n">didCompleteWithError</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="p">{</span>
+  <span class="c1">//remove from downloadData</span>
+  <span class="c1">//add to resumData</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Initially, It may seem nothing is wrong with our class implementation, However if we invoke our class methods from different threads, the class state on each of those threads can be different. This is called <em>Data Race</em>, and it’s a common concurrency problem. A Data Race occurs when a shared state is read and mutated from different threads at the same time. Different classes may take different approaches to handle such race conditions, which all of them involve a way of serializing access to their state.
+One of the features that’s been introduced in swift modern concurrency is the <code class="language-plaintext highlighter-rouge">actor</code>, which is a suitable solution for a problem we currently have.</p>
+<h2 id="what-is-an-actor">What is an actor?</h2>
+<p>The <code class="language-plaintext highlighter-rouge">actor</code> is a modern concurrency solution designed to prevent data races. You can learn more about actors in the <a href="https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency#Actors">Swift documentations</a>. Apparently the only change that is required to turn a class into an actor is replace the <code class="language-plaintext highlighter-rouge">class</code> keyword to <code class="language-plaintext highlighter-rouge">actor</code>.</p>
+
+<p><em>Well it simply just … not works!</em> at least in our case. Although <code class="language-plaintext highlighter-rouge">actor</code>s are reference types like classes but they have two main differences.</p>
+<ul>
+  <li>Actors serialize all access to their method and properties, which is the primary reason we are considering them now.</li>
+  <li>Actors don’t support subclassing, because well, they are not actually classes!</li>
+</ul>
+
+<p>The main reason we inherited our <code class="language-plaintext highlighter-rouge">Downloadmanager</code> from <code class="language-plaintext highlighter-rouge">NSObject</code> was enable it to conform to <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code> which allows us to track the progress and results of our downloads. Well, can we export these <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code> responsibilities to another object, specially now that our <code class="language-plaintext highlighter-rouge">DownloadManager</code> implementation is becoming quite massive?</p>
+<h2 id="modernizing-urlsessiondownloaddelegate-with-an-adapter">Modernizing URLSessionDownloadDelegate with an Adapter</h2>
+<p>let’s create an adapter that conforms to <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code> and provides a nicer functional interface for working with the needed delegate methods.</p>
+
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadDelegateAdaptor</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+ <span class="kd">struct</span> <span class="kt">Config</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">fileFinishedDownloading</span><span class="p">:</span> <span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="n">_</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span><span class="n">_</span> <span class="nv">location</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Void</span>
+  
+  <span class="k">var</span> <span class="nv">fileDownloadingProgress</span><span class="p">:</span> <span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span><span class="n">_</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span><span class="n">_</span> <span class="nv">bytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span><span class="n">_</span> <span class="nv">totalBytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span><span class="n">_</span> <span class="nv">totalBytesExpectedToWrite</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Void</span>
+  
+  <span class="k">var</span> <span class="nv">didCompleteWithError</span><span class="p">:</span> <span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span><span class="n">_</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span><span class="n">_</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="o">-&gt;</span> <span class="kt">Void</span>
+  
+  <span class="k">var</span> <span class="nv">backgroundSessionDidFinishEvents</span><span class="p">:</span> <span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Void</span>
+ <span class="p">}</span>
+ 
+ <span class="k">var</span> <span class="nv">config</span><span class="p">:</span> <span class="kt">Config</span><span class="p">?</span>
+
+ <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didFinishDownloadingTo</span> <span class="nv">location</span><span class="p">:</span> <span class="kt">URL</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">config</span><span class="p">?</span><span class="o">.</span><span class="nf">fileFinishedDownloading</span><span class="p">(</span><span class="n">session</span><span class="p">,</span><span class="n">downloadTask</span><span class="p">,</span><span class="n">location</span><span class="p">)</span>
+ <span class="p">}</span>
+ 
+<span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">downloadTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">,</span> <span class="n">didWriteData</span> <span class="nv">bytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesWritten</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">,</span> <span class="nv">totalBytesExpectedToWrite</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">config</span><span class="p">?</span><span class="o">.</span><span class="nf">fileDownloadingProgress</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">downloadTask</span><span class="p">,</span> <span class="n">bytesWritten</span><span class="p">,</span> <span class="n">totalBytesWritten</span><span class="p">,</span> <span class="n">totalBytesExpectedToWrite</span><span class="p">)</span>
+<span class="p">}</span>
+
+ <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span> <span class="n">didCompleteWithError</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="p">{</span>
+  <span class="n">config</span><span class="p">?</span><span class="o">.</span><span class="nf">didCompleteWithError</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">task</span><span class="p">,</span> <span class="n">error</span><span class="p">)</span>
+<span class="p">}</span>
+
+ <span class="kd">func</span> <span class="nf">urlSessionDidFinishEvents</span><span class="p">(</span><span class="n">forBackgroundURLSession</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">)</span> <span class="p">{</span>
+  <span class="n">config</span><span class="p">?</span><span class="o">.</span><span class="nf">backgroundSessionDidFinishEvents</span><span class="p">(</span><span class="n">session</span><span class="p">)</span>
+ <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>As you can see the adaptor doesn’t do anything special. It simply passes its config functions to the corresponding method of <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code>.Now that our adaptor can handle <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code>, instead of passing <code class="language-plaintext highlighter-rouge">DownloadManager</code> to handle its URLSession delegate, let’s create an instance of <code class="language-plaintext highlighter-rouge">DownloadDelegateAdaptor</code> and pass it as our <code class="language-plaintext highlighter-rouge">URLSession</code> delegate.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">actor</span> <span class="kt">DownloadManager</span> <span class="p">{</span>
+  <span class="c1">//...</span>
+  <span class="kd">lazy</span> <span class="kd">private</span> <span class="k">var</span> <span class="nv">downloadSession</span><span class="p">:</span> <span class="kt">URLSession</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">session</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="p">(</span>
+      <span class="nv">configuration</span><span class="p">:</span> <span class="o">.</span><span class="k">default</span><span class="p">,</span>
+      <span class="nv">delegate</span><span class="p">:</span> <span class="n">downloadDelegate</span><span class="p">,</span>
+      <span class="nv">delegateQueue</span><span class="p">:</span> <span class="kc">nil</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span>
+  <span class="p">}()</span>
+  
+  <span class="c1">//...</span>
+  <span class="kd">lazy</span> <span class="kd">private</span> <span class="k">var</span> <span class="nv">downloadDelegate</span><span class="p">:</span> <span class="kt">URLSession</span><span class="o">.</span><span class="kt">DownloadDelegateAdaptor</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">delegate</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="o">.</span><span class="kt">DownloadDelegateAdaptor</span><span class="p">()</span>
+    <span class="n">delegate</span><span class="o">.</span><span class="n">config</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="o">.</span><span class="kt">DownloadDelegateAdaptor</span><span class="o">.</span><span class="kt">Config</span><span class="p">(</span>
+      <span class="nv">fileFinishedDownloading</span><span class="p">:</span> <span class="nf">urlSession</span><span class="p">(</span><span class="nv">_</span><span class="p">:</span><span class="nv">downloadTask</span><span class="p">:</span><span class="nv">didFinishDownloadingTo</span><span class="p">:),</span>
+      <span class="nv">fileDownloadingProgress</span><span class="p">:</span> <span class="nf">urlSession</span><span class="p">(</span><span class="nv">_</span><span class="p">:</span><span class="nv">downloadTask</span><span class="p">:</span><span class="nv">didWriteData</span><span class="p">:</span><span class="nv">totalBytesWritten</span><span class="p">:</span><span class="nv">totalBytesExpectedToWrite</span><span class="p">:),</span>
+      <span class="nv">didCompleteWithError</span><span class="p">:</span> <span class="nf">urlSession</span><span class="p">(</span><span class="nv">_</span><span class="p">:</span><span class="nv">task</span><span class="p">:</span><span class="nv">didCompleteWithError</span><span class="p">:),</span>
+      <span class="nv">backgroundSessionDidFinishEvents</span><span class="p">:</span> <span class="nf">urlSessionDidFinishEvents</span><span class="p">(</span><span class="nv">forBackgroundURLSession</span><span class="p">:)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">delegate</span>
+<span class="p">}()</span>
+</code></pre></div></div>
+<p>Note that we are keeping the previous <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code> methods in our <code class="language-plaintext highlighter-rouge">DownloadManager</code>. We will pass them as the configuration functions to our <code class="language-plaintext highlighter-rouge">DownloadDelegateAdaptor</code>.
+Another benefit of this adaption is that we can reuse our <code class="language-plaintext highlighter-rouge">DownloadDelegateAdaptor</code> as a modern replacement of <code class="language-plaintext highlighter-rouge">URLSessionDownloadDelegate</code> in other situations where we prefer using actors or value types. The same pattern can also be applied to other <code class="language-plaintext highlighter-rouge">URLSession</code> delegates like <code class="language-plaintext highlighter-rouge">URLSessionTaskDelegate</code> and `URLSessionDataDelegate</p>
+
+<p>Well that wraps up these series. I hope I’ve covered most of the challenges that I faced while building this <code class="language-plaintext highlighter-rouge">DownloadManager</code>. <code class="language-plaintext highlighter-rouge">URLSession</code> APIs have indeed been modernized and improved significantly over the past couple of years. However sometimes we still need to use old APIs and delegate patterns to achieve various tasks. Nevertheless it’s worthwhile to consider different alternatives to modernize old apis, ultimately leading to interesting solutions that can be reuse elsewhere.</p>
+
+<p>The complete implementation of <code class="language-plaintext highlighter-rouge">DownloadManager</code> is available on <a href="https://gist.github.com/shaysugg/8def3de858038eccf1ab2860424336e0">Gist</a>.</p>
+
+<p>Also if you have any comments or suggestions, feel free to reach out to me on my <a href="https://www.linkedin.com/in/shayan-barghaman/">LinkedIn</a> or <a href="https://github.com/shaysugg">Github</a>.</p>
+
+<p>Thanks for reading,
+Cheers!</p>]]></content><author><name>Shayan Barghaman</name></author><summary type="html"><![CDATA[For building a modern DownloadManager so far we’ve taken a look at part1: URLSession and Swift modern concurrency part2: Pausing and resuming download tasks part3: Background downloads]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://shaysugg.github.io//assets/DownloadManager1.png" /><media:content medium="image" url="https://shaysugg.github.io//assets/DownloadManager1.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Download Manager - Part 3 - Background downloads</title><link href="https://shaysugg.github.io//2024/04/23/DownloadManager3.html" rel="alternate" type="text/html" title="Download Manager - Part 3 - Background downloads" /><published>2024-04-23T00:00:00+03:30</published><updated>2024-04-23T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/04/23/DownloadManager3</id><content type="html" xml:base="https://shaysugg.github.io//2024/04/23/DownloadManager3.html"><![CDATA[<p>In the past series (<a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">part1</a>, <a href="https://shaysugg.github.io//2024/04/21/DownloadManager2.html">part2</a>) we went through how we can build a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads.
+In this article we will take a look at how we can add background download capability into our <code class="language-plaintext highlighter-rouge">DownloadManager</code>. Background download support is crucial for downloading large files. Many users may exit our app while a downloads is in progress, causing our app to enter a suspended state However users will expect the ongoing downloads to resume seamlessly. Fortunately supporting background downloads is not overly complicated, So let’s see how we we can implement this feature.</p>
+<h2 id="background-download-capability">Background Download Capability</h2>
+<p>The initial step in supporting background downloads is to define a dedicated <code class="language-plaintext highlighter-rouge">URLSession</code> with background configuration.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+ <span class="c1">//...</span>
+  <span class="kd">lazy</span> <span class="kd">private</span> <span class="k">var</span> <span class="nv">backgroundDownloadSession</span><span class="p">:</span> <span class="kt">URLSession</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">config</span> <span class="o">=</span> <span class="kt">URLSessionConfiguration</span><span class="o">.</span><span class="nf">background</span><span class="p">()</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">isDiscretionary</span> <span class="o">=</span> <span class="kc">false</span>
+    <span class="n">config</span><span class="o">.</span><span class="n">sessionSendsLaunchEvents</span> <span class="o">=</span> <span class="kc">true</span>
+    <span class="k">let</span> <span class="nv">session</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="p">(</span>
+      <span class="nv">configuration</span><span class="p">:</span> <span class="n">config</span><span class="p">,</span>
+      <span class="nv">delegate</span><span class="p">:</span> <span class="n">downloadDelegate</span><span class="p">,</span>
+      <span class="nv">delegateQueue</span><span class="p">:</span> <span class="kc">nil</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">session</span>
+ <span class="p">}()</span>
+ 
+<span class="p">}</span>
+</code></pre></div></div>
+<p><code class="language-plaintext highlighter-rouge">isDiscretionary</code> flag should be set to true for large file downloads with lower priority so the system may schedule the download based on various device conditions. However, in our case, if the app goes into the background, we often want the ongoing download to resume as soon as possible. Therefore, it’s been set to false.
+Now we have to define a method that uses our background configured session to download files:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">backgroundDownload</span><span class="p">(</span>
+  <span class="n">from</span> <span class="nv">url</span><span class="p">:</span> <span class="kt">URL</span><span class="p">,</span>
+  <span class="nv">earliestBeginDate</span><span class="p">:</span> <span class="kt">Date</span> <span class="o">=</span> <span class="kt">Date</span><span class="o">.</span><span class="n">now</span><span class="p">,</span>
+  <span class="nv">countOfBytesClientExpectsToReceive</span><span class="p">:</span> <span class="kt">Int64</span><span class="p">?</span> <span class="o">=</span> <span class="kc">nil</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">backgroundDownloadSession</span><span class="o">.</span><span class="nf">downloadTask</span><span class="p">(</span>
+    <span class="nv">with</span><span class="p">:</span> <span class="kt">URLRequest</span><span class="p">(</span><span class="nv">url</span><span class="p">:</span> <span class="n">url</span><span class="p">))</span>
+  
+  <span class="n">task</span><span class="o">.</span><span class="n">earliestBeginDate</span> <span class="o">=</span> <span class="n">earliestBeginDate</span>
+  <span class="k">if</span> <span class="k">let</span> <span class="nv">countOfBytesClientExpectsToReceive</span> <span class="p">{</span>
+    <span class="n">task</span><span class="o">.</span><span class="n">countOfBytesClientExpectsToReceive</span> <span class="o">=</span>
+    <span class="n">countOfBytesClientExpectsToReceive</span> 
+  <span class="p">}</span>
+
+  <span class="k">let</span> <span class="nv">downloadTask</span> <span class="o">=</span> <span class="kt">DownloadTask</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="n">task</span><span class="p">)</span>
+  <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">downloadTask</span>
+  <span class="n">task</span><span class="o">.</span><span class="nf">resume</span><span class="p">()</span>
+  <span class="k">return</span> <span class="n">downloadTask</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>This method implementation is similar to our regular download method that we implemented in <a href="/2024/04/06/DownloadManager1.html">part1</a> but with additional configurations. We capture <code class="language-plaintext highlighter-rouge">earliestBeginDate</code>, <code class="language-plaintext highlighter-rouge">countOfBytesClientExpectsToReceive</code> parameters and pass them to <code class="language-plaintext highlighter-rouge">DownloadTask</code>.</p>
+<h3 id="handling-app-suspension">Handling app suspension</h3>
+<p>If our app gets suspended in the background, our background downloads may continue in another process. When they’re finished, the system resumes the app and notify that the download is finished by calling this method in the <code class="language-plaintext highlighter-rouge">AppDelegate</code>:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">application</span><span class="p">(</span>
+ <span class="n">_</span> <span class="nv">application</span><span class="p">:</span> <span class="kt">UIApplication</span><span class="p">,</span>
+ <span class="n">handleEventsForBackgroundURLSession</span>
+ <span class="nv">identifier</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span>
+ <span class="nv">completionHandler</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)</span>
+</code></pre></div></div>
+<p>We should store the completion handler in our <code class="language-plaintext highlighter-rouge">DownloadManager</code> and call it when this <code class="language-plaintext highlighter-rouge">URLSessionDelegate</code> method is being called.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">urlSessionDidFinishEvents</span><span class="p">(</span><span class="n">forBackgroundURLSession</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">)</span>
+</code></pre></div></div>
+<p>More information for handling app suspension can be found in the official documentation. In our use case, the changes that will be needed are:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">AppDelegate</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">UIApplicationDelegate</span> <span class="p">{</span>
+<span class="c1">// ....</span>
+ <span class="kd">func</span> <span class="nf">application</span><span class="p">(</span>
+  <span class="n">_</span> <span class="nv">application</span><span class="p">:</span> <span class="kt">UIApplication</span><span class="p">,</span>
+  <span class="n">handleEventsForBackgroundURLSession</span> <span class="nv">identifier</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span>
+  <span class="nv">completionHandler</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">()</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)</span> <span class="p">{</span>
+   <span class="kt">DownloadManager</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="n">backgroundCompletionHandler</span> <span class="o">=</span> <span class="n">completionHandler</span>
+ <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+ <span class="c1">//...</span>
+ <span class="k">var</span> <span class="nv">backgroundCompletionHandler</span><span class="p">:</span> <span class="p">(()</span> <span class="o">-&gt;</span> <span class="kt">Void</span><span class="p">)?</span>
+ <span class="c1">//...</span>
+ <span class="kd">func</span> <span class="nf">urlSessionDidFinishEvents</span><span class="p">(</span>
+ <span class="n">forBackgroundURLSession</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nf">backgroundCompletionHandler</span><span class="p">?()</span>
+ <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>There are several good points related to background downloading have been mentioned in this <strong>SwiftLee</strong> blog post. Definitely worth to check them out.
+ <a href="https://www.avanderlee.com/swift/urlsession-common-pitfalls-with-background-download-upload-tasks/">URLSession: Common pitfalls with background download &amp; upload tasks</a></p>
+
+<p>In the next article, I’m going to explain potential concurrency problems that we may face with the current implementation of <code class="language-plaintext highlighter-rouge">DownloadManager</code> and why it’s recommended to consider our <code class="language-plaintext highlighter-rouge">DownloadManager</code> to be an <code class="language-plaintext highlighter-rouge">actor</code>.</p>
+
+<p>The complete implementation of <code class="language-plaintext highlighter-rouge">DownloadManager</code> is available on <a href="https://gist.github.com/shaysugg/8def3de858038eccf1ab2860424336e0">Gist</a>.</p>
+
+<p>Thank you for reading.</p>
+
+<p>Cheers!</p>]]></content><author><name>Shayan Barghaman</name></author><summary type="html"><![CDATA[In the past series (part1, part2) we went through how we can build a DownloadManager that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads. In this article we will take a look at how we can add background download capability into our DownloadManager. Background download support is crucial for downloading large files. Many users may exit our app while a downloads is in progress, causing our app to enter a suspended state However users will expect the ongoing downloads to resume seamlessly. Fortunately supporting background downloads is not overly complicated, So let’s see how we we can implement this feature. Background Download Capability The initial step in supporting background downloads is to define a dedicated URLSession with background configuration. class DownloadManager: NSObject, URLSessionDownloadDelegate { //... lazy private var backgroundDownloadSession: URLSession = { let config = URLSessionConfiguration.background() config.isDiscretionary = false config.sessionSendsLaunchEvents = true let session = URLSession( configuration: config, delegate: downloadDelegate, delegateQueue: nil ) return session }() } isDiscretionary flag should be set to true for large file downloads with lower priority so the system may schedule the download based on various device conditions. However, in our case, if the app goes into the background, we often want the ongoing download to resume as soon as possible. Therefore, it’s been set to false. Now we have to define a method that uses our background configured session to download files: ```swift func backgroundDownload( from url: URL, earliestBeginDate: Date = Date.now, countOfBytesClientExpectsToReceive: Int64? = nil, ) -&gt; DownloadTask { let task = backgroundDownloadSession.downloadTask( with: URLRequest(url: url)) task.earliestBeginDate = earliestBeginDate if let countOfBytesClientExpectsToReceive { task.countOfBytesClientExpectsToReceive = countOfBytesClientExpectsToReceive }]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://shaysugg.github.io//assets/DownloadManager1.png" /><media:content medium="image" url="https://shaysugg.github.io//assets/DownloadManager1.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Download Manager - Part 2 - Pausing and resuming download tasks</title><link href="https://shaysugg.github.io//2024/04/21/DownloadManager2.html" rel="alternate" type="text/html" title="Download Manager - Part 2 - Pausing and resuming download tasks" /><published>2024-04-21T00:00:00+03:30</published><updated>2024-04-21T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/04/21/DownloadManager2</id><content type="html" xml:base="https://shaysugg.github.io//2024/04/21/DownloadManager2.html"><![CDATA[<p>In the <a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">previous article</a> I explained how I built a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally.
+It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning.
+According to the <a href="https://developer.apple.com/documentation/foundation/url_loading_system/pausing_and_resuming_downloads">docs</a>, when a download is canceled it <strong>may</strong> return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later.</p>
+<h2 id="identifying-downloadtasks">Identifying DownloadTasks</h2>
+<p>To integrate resuming data caching into the download manager, First let’s pass the <code class="language-plaintext highlighter-rouge">URLSessionTask</code> to our <code class="language-plaintext highlighter-rouge">DownloadTask</code> upon its initialization.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span>
+
+  <span class="nf">init</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">self</span><span class="o">.</span><span class="n">urlSessionTask</span> <span class="o">=</span> <span class="n">urlSessionTask</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Note that the <code class="language-plaintext highlighter-rouge">DownloadTask</code> currently acts as a wrapper around the <code class="language-plaintext highlighter-rouge">URLSessionTask</code>. It is arguable that right now it’s possible to call <code class="language-plaintext highlighter-rouge">URLSessionTask</code> methods directly without needing to use our <code class="language-plaintext highlighter-rouge">DownloadManager</code>, or in other words, our download Manager is not a complete <em>proxy</em> for our <code class="language-plaintext highlighter-rouge">URLSessionTask</code>s.
+Since we are only interested in task identifier and cancelation method of <code class="language-plaintext highlighter-rouge">URLSessionTask</code> , we can make <code class="language-plaintext highlighter-rouge">URLSessionTask</code> private and only expose these functionalities outside.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadTask</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span>
+  <span class="k">var</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span> <span class="p">{</span> <span class="n">urlSessionTask</span><span class="o">.</span><span class="n">taskIdentifier</span> <span class="p">}</span>
+	
+  <span class="nf">init</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="kt">URLSessionDownloadTask</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">self</span><span class="o">.</span><span class="n">urlSessionTask</span> <span class="o">=</span> <span class="n">urlSessionTask</span>
+  <span class="p">}</span>
+	
+  <span class="kd">func</span> <span class="nf">cancel</span><span class="p">()</span> <span class="k">async</span> <span class="o">-&gt;</span> <span class="kt">Data</span><span class="p">?</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">await</span> <span class="n">urlSessionTask</span><span class="o">.</span><span class="nf">cancelByProducingResumeData</span><span class="p">()</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>If we’re using DownloadManager as a package, it’s also better to consider <code class="language-plaintext highlighter-rouge">cancel()</code> as an <code class="language-plaintext highlighter-rouge">internal</code> method.</p>
+
+<h2 id="updating-the-downloadmanager">Updating The DownloadManager</h2>
+<p>let’s add a cancel method and a dictionary that contains cancellation resume data to our <code class="language-plaintext highlighter-rouge">DownloaodManager</code>.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+  <span class="c1">//...</span>
+  <span class="kd">private</span> <span class="k">var</span> <span class="nv">resumeData</span><span class="p">:</span> <span class="p">[</span><span class="kt">DownloadTaskID</span><span class="p">:</span> <span class="kt">Data</span><span class="p">]</span> <span class="o">=</span> <span class="p">[:]</span>
+  <span class="c1">//...</span>
+  <span class="kd">func</span> <span class="nf">cancel</span><span class="p">(</span><span class="n">taskWithID</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">id</span><span class="p">]</span> <span class="k">else</span> <span class="p">{</span> <span class="k">return</span> <span class="p">}</span>
+    <span class="n">task</span><span class="o">.</span><span class="nf">finish</span><span class="p">(</span><span class="nv">error</span><span class="p">:</span> <span class="kt">DownloadCancellation</span><span class="p">())</span>
+    <span class="n">downloads</span><span class="o">.</span><span class="nf">removeValue</span><span class="p">(</span><span class="nv">forKey</span><span class="p">:</span> <span class="n">id</span><span class="p">)</span>
+    <span class="kt">Task</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="k">let</span> <span class="nv">resumeData</span> <span class="o">=</span> <span class="k">await</span> <span class="n">task</span><span class="o">.</span><span class="nf">cancel</span><span class="p">()</span> <span class="p">{</span>
+        <span class="k">self</span><span class="o">.</span><span class="n">resumeData</span><span class="p">[</span><span class="n">id</span><span class="p">]</span> <span class="o">=</span> <span class="n">resumeData</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>As previously mentioned, resuming can also be useful for tasks that have been failed. let’s check if our failed tasks have resume data, and if so, store their resume datas.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+	<span class="c1">//...</span>
+  <span class="kd">func</span> <span class="nf">urlSession</span><span class="p">(</span><span class="n">_</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">,</span> <span class="nv">task</span><span class="p">:</span> <span class="kt">URLSessionTask</span><span class="p">,</span> <span class="n">didCompleteWithError</span> <span class="nv">error</span><span class="p">:</span> <span class="kt">Error</span><span class="p">?)</span> <span class="p">{</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">error</span> <span class="k">else</span> <span class="p">{</span> <span class="k">return</span> <span class="p">}</span>
+    <span class="k">let</span> <span class="nv">download</span> <span class="o">=</span> <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span>
+    <span class="n">download</span><span class="p">?</span><span class="o">.</span><span class="nf">finish</span><span class="p">(</span><span class="nv">error</span><span class="p">:</span> <span class="n">error</span><span class="p">)</span>
+    <span class="n">downloads</span><span class="o">.</span><span class="nf">removeValue</span><span class="p">(</span><span class="nv">forKey</span><span class="p">:</span> <span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">userInfo</span> <span class="o">=</span> <span class="p">(</span><span class="n">error</span> <span class="k">as</span> <span class="kt">NSError</span><span class="p">)</span><span class="o">.</span><span class="n">userInfo</span>
+    <span class="k">if</span> <span class="k">let</span> <span class="nv">resumeData</span> <span class="o">=</span> 
+    <span class="n">userInfo</span><span class="p">[</span><span class="kt">NSURLSessionDownloadTaskResumeData</span><span class="p">]</span> <span class="k">as?</span> <span class="kt">Data</span> <span class="p">{</span>
+      <span class="k">self</span><span class="o">.</span><span class="n">resumeData</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">resumeData</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>For resuming tasks we only need to find the corresponding data in our resume data dictionary and start a new URLSession task with it.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">DownloadManager</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">URLSessionDownloadDelegate</span> <span class="p">{</span>
+	<span class="c1">//...</span>
+  <span class="kd">func</span> <span class="nf">resume</span><span class="p">(</span><span class="n">taskWithID</span> <span class="nv">id</span><span class="p">:</span> <span class="kt">DownloadTaskID</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">DownloadTask</span><span class="p">?</span> <span class="p">{</span>
+    <span class="k">guard</span> <span class="k">let</span> <span class="nv">data</span> <span class="o">=</span> <span class="n">resumeData</span><span class="p">[</span><span class="n">id</span><span class="p">]</span> <span class="k">else</span> <span class="p">{</span> <span class="k">return</span> <span class="kc">nil</span> <span class="p">}</span>
+    <span class="k">let</span> <span class="nv">task</span> <span class="o">=</span> <span class="n">downloadSession</span><span class="o">.</span><span class="nf">downloadTask</span><span class="p">(</span><span class="nv">withResumeData</span><span class="p">:</span> <span class="n">data</span><span class="p">)</span>
+    <span class="k">let</span> <span class="nv">downloadTask</span> <span class="o">=</span> <span class="kt">DownloadTask</span><span class="p">(</span><span class="nv">urlSessionTask</span><span class="p">:</span> <span class="n">task</span><span class="p">)</span>
+    <span class="n">downloads</span><span class="p">[</span><span class="n">task</span><span class="o">.</span><span class="n">taskIdentifier</span><span class="p">]</span> <span class="o">=</span> <span class="n">downloadTask</span>
+    <span class="k">return</span> <span class="n">downloadTask</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>That’s all there is to it.</p>
+
+<p>In the next article I will explain how we can add the ability to handle background downloads.
+As a reminder, the complete Download manager implementation is available on <a href="https://gist.github.com/shaysugg/8def3de858038eccf1ab2860424336e0">Gist</a>.</p>
+
+<p>Thank you for reading,
+Cheers!</p>]]></content><author><name>Shayan Barghaman</name></author><summary type="html"><![CDATA[In the previous article I explained how I built a DownloadManager that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally. It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning. According to the docs, when a download is canceled it may return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later. Identifying DownloadTasks To integrate resuming data caching into the download manager, First let’s pass the URLSessionTask to our DownloadTask upon its initialization. ```swift struct DownloadTask { let urlSessionTask: URLSessionDownloadTask]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://shaysugg.github.io//assets/DownloadManager1.png" /><media:content medium="image" url="https://shaysugg.github.io//assets/DownloadManager1.png" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Download Manager - Part 1 - URLSession and Swift modern concurrency</title><link href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html" rel="alternate" type="text/html" title="Download Manager - Part 1 - URLSession and Swift modern concurrency" /><published>2024-04-06T00:00:00+03:30</published><updated>2024-04-06T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/04/06/DownloadManager1</id><content type="html" xml:base="https://shaysugg.github.io//2024/04/06/DownloadManager1.html"><![CDATA[<p>Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like <a href="https://github.com/AFNetworking/AFNetworking">AFNetworking</a> or <a href="https://github.com/Alamofire/Alamofire">Alamofire</a>. However over the past years it has its improvements. Two of its notable improvements can be the Combine and <code class="language-plaintext highlighter-rouge">async await</code> equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others.
 Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this:</p>
 <div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadManager</span> <span class="p">{</span>
   <span class="k">let</span> <span class="nv">downloadSession</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="o">.</span><span class="n">shared</span>
