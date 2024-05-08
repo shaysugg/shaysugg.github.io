@@ -13,7 +13,7 @@
   <!-- Begin Jekyll SEO tag v2.8.0 -->
 <meta name="generator" content="Jekyll v4.3.3" />
 <meta property="og:title" content="Download Manager - Part 3 - Background downloads" />
-<meta name="author" content="Shayan Barghaman" />
+<meta name="author" content="Shayan B" />
 <meta property="og:locale" content="en_US" />
 <meta name="description" content="In the past series (part1, part2) we went through how we can build a DownloadManager that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads." />
 <meta property="og:description" content="In the past series (part1, part2) we went through how we can build a DownloadManager that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads." />
@@ -27,7 +27,7 @@
 <meta property="twitter:image" content="https://shaysugg.github.io//assets/DownloadManager1.png" />
 <meta property="twitter:title" content="Download Manager - Part 3 - Background downloads" />
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan Barghaman"},"dateModified":"2024-04-23T00:00:00+03:30","datePublished":"2024-04-23T00:00:00+03:30","description":"In the past series (part1, part2) we went through how we can build a DownloadManager that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads.","headline":"Download Manager - Part 3 - Background downloads","image":"https://shaysugg.github.io//assets/DownloadManager1.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/04/23/DownloadManager3.html"},"url":"https://shaysugg.github.io//2024/04/23/DownloadManager3.html"}</script>
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan B"},"dateModified":"2024-04-23T00:00:00+03:30","datePublished":"2024-04-23T00:00:00+03:30","description":"In the past series (part1, part2) we went through how we can build a DownloadManager that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads.","headline":"Download Manager - Part 3 - Background downloads","image":"https://shaysugg.github.io//assets/DownloadManager1.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/04/23/DownloadManager3.html"},"url":"https://shaysugg.github.io//2024/04/23/DownloadManager3.html"}</script>
 <!-- End Jekyll SEO tag -->
 
   <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
@@ -95,7 +95,7 @@
 <p>We should store the completion handler in our <code class="language-plaintext highlighter-rouge">DownloadManager</code> and call it when this <code class="language-plaintext highlighter-rouge">URLSessionDelegate</code> method is being called.</p>
 <div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">urlSessionDidFinishEvents</span><span class="p">(</span><span class="n">forBackgroundURLSession</span> <span class="nv">session</span><span class="p">:</span> <span class="kt">URLSession</span><span class="p">)</span>
 </code></pre></div></div>
-<p>More information for handling app suspension can be found in the official documentation. In our use case, the changes that will be needed are:</p>
+<p>More information for handling app suspension can be found in the <a href="https://developer.apple.com/documentation/foundation/url_loading_system/downloading_files_in_the_background">Apple documentations</a>. In our use case, the changes that will be needed are:</p>
 <div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">class</span> <span class="kt">AppDelegate</span><span class="p">:</span> <span class="kt">NSObject</span><span class="p">,</span> <span class="kt">UIApplicationDelegate</span> <span class="p">{</span>
 <span class="c1">// ....</span>
  <span class="kd">func</span> <span class="nf">application</span><span class="p">(</span>

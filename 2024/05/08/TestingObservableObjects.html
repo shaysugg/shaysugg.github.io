@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>
+    
+    Testing Observable Objects
+    
+  </title>
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Testing Observable Objects" />
+<meta name="author" content="Shayan B" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="It’s usually a good practice to put view logics into ObservableObjects when working with SwiftUI. It brings various benefits like; reusability, testability, avoid SwiftUI view cycles and more. One common scenario that we may find ourselves in, is retrieving data and handling its view side effects. It’s also common that our data retrieval to be being asynchronous, as shown in the example below: ```swift struct Item { let name: String }" />
+<meta property="og:description" content="It’s usually a good practice to put view logics into ObservableObjects when working with SwiftUI. It brings various benefits like; reusability, testability, avoid SwiftUI view cycles and more. One common scenario that we may find ourselves in, is retrieving data and handling its view side effects. It’s also common that our data retrieval to be being asynchronous, as shown in the example below: ```swift struct Item { let name: String }" />
+<link rel="canonical" href="https://shaysugg.github.io//2024/05/08/TestingObservableObjects.html" />
+<meta property="og:url" content="https://shaysugg.github.io//2024/05/08/TestingObservableObjects.html" />
+<meta property="og:site_name" content="devbashayan" />
+<meta property="og:image" content="https://shaysugg.github.io/" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-05-08T00:00:00+03:30" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta property="twitter:image" content="https://shaysugg.github.io/" />
+<meta property="twitter:title" content="Testing Observable Objects" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan B"},"dateModified":"2024-05-08T00:00:00+03:30","datePublished":"2024-05-08T00:00:00+03:30","description":"It’s usually a good practice to put view logics into ObservableObjects when working with SwiftUI. It brings various benefits like; reusability, testability, avoid SwiftUI view cycles and more. One common scenario that we may find ourselves in, is retrieving data and handling its view side effects. It’s also common that our data retrieval to be being asynchronous, as shown in the example below: ```swift struct Item { let name: String }","headline":"Testing Observable Objects","image":"https://shaysugg.github.io/","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/05/08/TestingObservableObjects.html"},"url":"https://shaysugg.github.io//2024/05/08/TestingObservableObjects.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
+
+  <link rel="shortcut icon" type="image/x-icon" href="/./logo.png" />
+  <link rel="stylesheet" href="https://shaysugg.github.io//assets/css/main.css" />
+</head><body a="auto">
+    <main class="page-content" aria-label="Content">
+        <div class="w">
+            <a href="https://shaysugg.github.io/">home</a>
+<h1>Testing Observable Objects</h1>
+<p>It’s usually a good practice to put view logics into <code class="language-plaintext highlighter-rouge">ObservableObject</code>s when working with SwiftUI. It brings various benefits like; <strong>reusability, testability, avoid SwiftUI view cycles</strong> and more.
+One common scenario that we may find ourselves in, is retrieving data and handling its view side effects. It’s also common that our data retrieval to be being asynchronous, as shown in the example below:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">Item</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">name</span><span class="p">:</span> <span class="kt">String</span>
+<span class="p">}</span>
+
+<span class="kd">class</span> <span class="kt">ItemList</span><span class="p">:</span> <span class="kt">ObservableObject</span> <span class="p">{</span>
+  <span class="kd">@Published</span> <span class="k">var</span> <span class="nv">items</span><span class="p">:</span> <span class="p">[</span><span class="kt">Item</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+  <span class="kd">private</span> <span class="k">let</span> <span class="nv">loadItems</span><span class="p">:</span> <span class="p">()</span> <span class="k">async</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt">Item</span><span class="p">]</span>
+
+  <span class="nf">init</span><span class="p">(</span><span class="nv">loadItems</span><span class="p">:</span> <span class="kd">@escaping</span> <span class="p">()</span> <span class="k">async</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt">Item</span><span class="p">])</span> <span class="p">{</span>
+    <span class="k">self</span><span class="o">.</span><span class="n">loadItems</span> <span class="o">=</span> <span class="n">loadItems</span>
+  <span class="p">}</span>
+
+  <span class="kd">func</span> <span class="nf">load</span><span class="p">()</span> <span class="p">{</span>
+    <span class="kt">Task</span> <span class="p">{</span>
+      <span class="k">let</span> <span class="nv">items</span> <span class="o">=</span> <span class="k">await</span> <span class="nf">loadItems</span><span class="p">()</span>
+      <span class="k">self</span><span class="o">.</span><span class="n">items</span> <span class="o">=</span> <span class="n">items</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>As you can see we used function injection <code class="language-plaintext highlighter-rouge">let loadItems: () async -&gt; [Item]</code> to enable injecting different item loading mechanisms into our ItemList. In production code, we may use networking or data base functions to return items. For testing purposes, we can simply inject a function that returns mock data, like:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">load2MockItems</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt">Item</span><span class="p">]</span> <span class="p">{</span>
+  <span class="n">loadCallTimes</span> <span class="o">+=</span> <span class="mi">1</span>
+  <span class="k">return</span> <span class="p">[</span><span class="kt">Item</span><span class="p">(</span><span class="nv">name</span><span class="p">:</span> <span class="s">"hello"</span><span class="p">),</span> <span class="kt">Item</span><span class="p">(</span><span class="nv">name</span><span class="p">:</span> <span class="s">"world"</span><span class="p">)]</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<h2 id="writing-tests">Writing Tests</h2>
+<p>Now that our <code class="language-plaintext highlighter-rouge">ItemList</code> is ready to test, let’s write a simple test to verify that when we load items successfully, our <code class="language-plaintext highlighter-rouge">items</code> property will be assigned correctly.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">final</span> <span class="kd">class</span> <span class="kt">ItemListTests</span><span class="p">:</span> <span class="kt">XCTest</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">itemList</span><span class="p">:</span> <span class="kt">ItemList</span><span class="o">!</span>
+  <span class="k">var</span> <span class="nv">itemLoader</span><span class="p">:</span> <span class="kt">MockItemLoader</span><span class="o">!</span>
+  <span class="k">override</span> <span class="kd">func</span> <span class="nf">setUpWithError</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="k">try</span> <span class="k">super</span><span class="o">.</span><span class="nf">setUpWithError</span><span class="p">()</span>
+    <span class="n">itemLoader</span> <span class="o">=</span> <span class="kt">MockItemLoader</span><span class="p">()</span>
+    <span class="n">itemList</span> <span class="o">=</span> <span class="kt">ItemList</span><span class="p">(</span><span class="nv">loadItems</span><span class="p">:</span> <span class="n">itemLoader</span><span class="o">.</span><span class="n">load2MockItems</span><span class="p">)</span>
+  <span class="p">}</span>
+  
+  <span class="k">override</span> <span class="kd">func</span> <span class="nf">tearDownWithError</span><span class="p">()</span> <span class="k">throws</span> <span class="p">{</span>
+    <span class="k">try</span> <span class="k">super</span><span class="o">.</span><span class="nf">tearDownWithError</span><span class="p">()</span>
+    <span class="n">itemLoader</span> <span class="o">=</span> <span class="kc">nil</span>
+    <span class="n">itemList</span> <span class="o">=</span> <span class="kc">nil</span>
+  <span class="p">}</span>
+  
+  <span class="kd">func</span> <span class="nf">testItemList_whenLoadItemsSuccessfully_itemsWillBeCorrectlyAssigned</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">//when</span>
+    <span class="n">itemList</span><span class="o">.</span><span class="nf">load</span><span class="p">()</span>
+    
+    <span class="c1">//then</span>
+    <span class="c1">//will thay pass??</span>
+    <span class="kt">XCTAssertEqual</span><span class="p">(</span><span class="n">itemList</span><span class="o">.</span><span class="n">items</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="kt">XCTAssertEqual</span><span class="p">(</span><span class="n">itemLoader</span><span class="o">.</span><span class="n">loadCallTimes</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> 
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">final</span> <span class="kd">class</span> <span class="kt">MockItemLoader</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">loadCallTimes</span> <span class="o">=</span> <span class="mi">0</span>
+  <span class="kd">func</span> <span class="nf">load2MockItems</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="p">[</span><span class="kt">Item</span><span class="p">]</span> <span class="p">{</span>
+    <span class="n">loadCallTimes</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="p">[</span><span class="kt">Item</span><span class="p">(</span><span class="nv">name</span><span class="p">:</span> <span class="s">"hello"</span><span class="p">),</span> <span class="kt">Item</span><span class="p">(</span><span class="nv">name</span><span class="p">:</span> <span class="s">"world"</span><span class="p">)]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>We’ve defined a MockItemLoader which not only produces some mock data, but also keeps track of its loading method calls count.
+In our actual test we set up the <code class="language-plaintext highlighter-rouge">loadItems</code> function of <code class="language-plaintext highlighter-rouge">ItemList</code> to use synchronous data from <code class="language-plaintext highlighter-rouge">MockItemLoader</code>. Then, we check if the passed function is called and the returned data is assigned correctly.</p>
+<h2 id="the-problem">The Problem</h2>
+<p>But if we run our test, <strong>it’s going to fail</strong>. <mark>The main reason is that while our `MockItemLoader` loading function is synchronous, it will be called in an asynchronous environment within our `ItemList`.</mark> We start a <strong>Task</strong> in our <code class="language-plaintext highlighter-rouge">ItemsList</code> <code class="language-plaintext highlighter-rouge">load()</code> method because we can’t make any assumption about whether loading is asynchronous or not. In our testing case ,while loading itself is synchronous it’s still not going to be executed synchronously, so we can’t check it with our XCTAsserts. 
+At first It might seem that we can handle this problem by introducing a small amount of delay using <code class="language-plaintext highlighter-rouge">Task.sleep()</code>. However it’s usually a good practice to avoid any explicit latency when writing tests. On the other hand, we can utilize the <code class="language-plaintext highlighter-rouge">onChange</code> function of <code class="language-plaintext highlighter-rouge">ObservableObject</code>’s to wait for our desired behavior to appear before continuing our test.</p>
+<h2 id="a-general-solution">A General solution</h2>
+<p>Since the issue that we encountered can happen for other <code class="language-plaintext highlighter-rouge">ObservableObject</code>s as well, let’s write a general solution in form of a test private extension that can be used for all our <code class="language-plaintext highlighter-rouge">ObservableObjects</code>s.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">extension</span> <span class="kt">XCTestCase</span> <span class="p">{</span>
+  <span class="kd">func</span> <span class="n">wait</span><span class="o">&lt;</span><span class="kt">Object</span><span class="p">:</span> <span class="kt">ObservableObject</span><span class="o">&gt;</span><span class="p">(</span>
+    <span class="n">forObject</span> <span class="nv">object</span><span class="p">:</span> <span class="kt">Object</span><span class="p">,</span>
+    <span class="nv">timeout</span><span class="p">:</span> <span class="kt">Double</span><span class="p">,</span>
+    <span class="n">toChange</span> <span class="nv">change</span><span class="p">:</span> <span class="p">(</span><span class="kt">Object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kt">Bool</span><span class="p">,</span>
+    <span class="nv">testName</span><span class="p">:</span> <span class="kt">String</span> <span class="o">=</span> <span class="k">#function</span><span class="p">,</span>
+    <span class="k">in</span> <span class="nv">file</span><span class="p">:</span> <span class="kt">StaticString</span> <span class="o">=</span> <span class="k">#file</span><span class="p">,</span>
+    <span class="n">at</span> <span class="nv">line</span><span class="p">:</span> <span class="kt">UInt</span> <span class="o">=</span> <span class="k">#line</span>
+  <span class="p">)</span> <span class="k">async</span> <span class="p">{</span>
+    <span class="k">let</span> <span class="nv">publisher</span> <span class="o">=</span> <span class="n">object</span>
+      <span class="o">.</span><span class="n">objectWillChange</span>
+      <span class="o">.</span><span class="nf">timeout</span><span class="p">(</span><span class="o">.</span><span class="nf">seconds</span><span class="p">(</span><span class="n">timeout</span><span class="p">),</span> <span class="nv">scheduler</span><span class="p">:</span> <span class="kt">DispatchQueue</span><span class="o">.</span><span class="n">main</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="k">await</span> <span class="n">_</span> <span class="k">in</span> <span class="n">publisher</span><span class="o">.</span><span class="n">values</span> <span class="p">{</span>
+      <span class="k">if</span> <span class="nf">change</span><span class="p">(</span><span class="n">object</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="kt">XCTFail</span><span class="p">(</span><span class="s">"Timeout Reached"</span><span class="p">,</span> <span class="nv">file</span><span class="p">:</span> <span class="n">file</span><span class="p">,</span> <span class="nv">line</span><span class="p">:</span> <span class="n">line</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Now we can refactor our recent test into</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">testItemList_whenLoadItemsSuccessfully_itemsWillBeCorrectlyAssigned</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">//when</span>
+  <span class="n">itemList</span><span class="o">.</span><span class="nf">load</span><span class="p">()</span>
+  <span class="k">await</span> <span class="nf">wait</span><span class="p">(</span><span class="nv">forObject</span><span class="p">:</span> <span class="n">itemList</span><span class="p">,</span> <span class="nv">timeout</span><span class="p">:</span> <span class="mi">1</span><span class="p">)</span> <span class="p">{</span> <span class="n">itemList</span> <span class="k">in</span>
+    <span class="o">!</span><span class="n">itemList</span><span class="o">.</span><span class="n">items</span><span class="o">.</span><span class="n">isEmpty</span>
+  <span class="p">}</span>
+  <span class="c1">//then</span>
+  <span class="kt">XCTAssertEqual</span><span class="p">(</span><span class="n">itemList</span><span class="o">.</span><span class="n">items</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+  <span class="kt">XCTAssertEqual</span><span class="p">(</span><span class="n">itemLoader</span><span class="o">.</span><span class="n">loadCallTimes</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>We can now see that our test will pass and also we have a convenient way of waiting for the <code class="language-plaintext highlighter-rouge">ObservableObjects</code> in the other tests.
+Hope you find this one useful! If you have any questions or workaround related to this problem feel free to reach out to me on my <a href="https://github.com/shaysugg">Github</a> or <a href="https://www.linkedin.com/in/shayan-barghaman/)">LinkedIn</a>.</p>
+
+<p>Thanks for reading!
+Cheers!</p>
+
+
+        </div>
+    </main>
+
+    
+    </body>
+</html>
