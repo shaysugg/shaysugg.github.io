@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>
+    
+    Setting up Core Data in a package
+    
+  </title>
+
+  <!-- Begin Jekyll SEO tag v2.8.0 -->
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Setting up Core Data in a package" />
+<meta name="author" content="Shayan B" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face. Setting up Persistent Container In your packages, you should manually setup the CoreData persistent container. In order to do this, you need a path to your Data Model file. For the applications, we tend to use Bundle.main.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) But when you’re in a package, you should use module bundle instead of main like: Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) After that, you need to move your Data Model files into a specific directory called Resources. If you don’t have such a directory, create one in this hierarchical format: &lt;YourPackageName&gt; Sources &lt;YourPackageName&gt; Resources More information about packages resource management can be found at: Building resource with a Swift package. If everything goes correctly, you should be able to instantiate your Persistent Container like this: guard let url = Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;), let model = NSManagedObjectModel(contentsOf: url) else { fatalError(&quot;Unable to load data model file&quot;) } PersistentContainer(name: &quot;Your-DataModel-File-Name&quot;, managedObjectModel: model)" />
+<meta property="og:description" content="There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face. Setting up Persistent Container In your packages, you should manually setup the CoreData persistent container. In order to do this, you need a path to your Data Model file. For the applications, we tend to use Bundle.main.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) But when you’re in a package, you should use module bundle instead of main like: Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) After that, you need to move your Data Model files into a specific directory called Resources. If you don’t have such a directory, create one in this hierarchical format: &lt;YourPackageName&gt; Sources &lt;YourPackageName&gt; Resources More information about packages resource management can be found at: Building resource with a Swift package. If everything goes correctly, you should be able to instantiate your Persistent Container like this: guard let url = Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;), let model = NSManagedObjectModel(contentsOf: url) else { fatalError(&quot;Unable to load data model file&quot;) } PersistentContainer(name: &quot;Your-DataModel-File-Name&quot;, managedObjectModel: model)" />
+<link rel="canonical" href="https://shaysugg.github.io//2024/05/19/SetupCoreDataInPackages.html" />
+<meta property="og:url" content="https://shaysugg.github.io//2024/05/19/SetupCoreDataInPackages.html" />
+<meta property="og:site_name" content="devbashayan" />
+<meta property="og:image" content="https://shaysugg.github.io/" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-05-19T00:00:00+03:30" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta property="twitter:image" content="https://shaysugg.github.io/" />
+<meta property="twitter:title" content="Setting up Core Data in a package" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan B"},"dateModified":"2024-05-19T00:00:00+03:30","datePublished":"2024-05-19T00:00:00+03:30","description":"There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face. Setting up Persistent Container In your packages, you should manually setup the CoreData persistent container. In order to do this, you need a path to your Data Model file. For the applications, we tend to use Bundle.main.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) But when you’re in a package, you should use module bundle instead of main like: Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) After that, you need to move your Data Model files into a specific directory called Resources. If you don’t have such a directory, create one in this hierarchical format: &lt;YourPackageName&gt; Sources &lt;YourPackageName&gt; Resources More information about packages resource management can be found at: Building resource with a Swift package. If everything goes correctly, you should be able to instantiate your Persistent Container like this: guard let url = Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;), let model = NSManagedObjectModel(contentsOf: url) else { fatalError(&quot;Unable to load data model file&quot;) } PersistentContainer(name: &quot;Your-DataModel-File-Name&quot;, managedObjectModel: model)","headline":"Setting up Core Data in a package","image":"https://shaysugg.github.io/","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/05/19/SetupCoreDataInPackages.html"},"url":"https://shaysugg.github.io//2024/05/19/SetupCoreDataInPackages.html"}</script>
+<!-- End Jekyll SEO tag -->
+
+  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
+
+  <link rel="shortcut icon" type="image/x-icon" href="/./logo.png" />
+  <link rel="stylesheet" href="https://shaysugg.github.io//assets/css/main.css" />
+</head><body a="auto">
+    <main class="page-content" aria-label="Content">
+        <div class="w">
+            <a href="https://shaysugg.github.io/">home</a>
+<h1>Setting up Core Data in a package</h1>
+<p>There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face.</p>
+<h2 id="setting-up-persistent-container">Setting up Persistent Container</h2>
+<p>In your packages, you should manually setup the CoreData persistent container. In order to do this, you need a path to your Data Model file. For the applications, we tend to use</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">Bundle</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="nf">url</span><span class="p">(</span><span class="nv">forResource</span><span class="p">:</span> <span class="s">"Your-DataModel-File-Name"</span><span class="p">,</span> <span class="nv">withExtension</span><span class="p">:</span> <span class="s">"momd"</span><span class="p">)</span>
+</code></pre></div></div>
+<p>But when you’re in a package, you should use <code class="language-plaintext highlighter-rouge">module</code> bundle instead of <code class="language-plaintext highlighter-rouge">main</code> like:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">Bundle</span><span class="o">.</span><span class="n">module</span><span class="o">.</span><span class="nf">url</span><span class="p">(</span><span class="nv">forResource</span><span class="p">:</span> <span class="s">"Your-DataModel-File-Name"</span><span class="p">,</span> <span class="nv">withExtension</span><span class="p">:</span> <span class="s">"momd"</span><span class="p">)</span>
+</code></pre></div></div>
+<p>After that, you need to move your Data Model files into a specific directory called Resources. If you don’t have such a directory, create one in this hierarchical format:</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;YourPackageName&gt;
+	Sources
+		&lt;YourPackageName&gt;
+			Resources
+</code></pre></div></div>
+<p>More information about packages resource management can be found at:
+<a href="https://developer.apple.com/documentation/xcode/bundling-resources-with-a-swift-package">Building resource with a Swift package</a>.
+If everything goes correctly, you should be able to instantiate your Persistent Container like this:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">guard</span> <span class="k">let</span> <span class="nv">url</span> <span class="o">=</span> <span class="kt">Bundle</span><span class="o">.</span><span class="n">module</span><span class="o">.</span><span class="nf">url</span><span class="p">(</span><span class="nv">forResource</span><span class="p">:</span> <span class="s">"Your-DataModel-File-Name"</span><span class="p">,</span> <span class="nv">withExtension</span><span class="p">:</span> <span class="s">"momd"</span><span class="p">),</span>
+<span class="k">let</span> <span class="nv">model</span> <span class="o">=</span> <span class="kt">NSManagedObjectModel</span><span class="p">(</span><span class="nv">contentsOf</span><span class="p">:</span> <span class="n">url</span><span class="p">)</span> <span class="k">else</span> <span class="p">{</span>
+  <span class="nf">fatalError</span><span class="p">(</span><span class="s">"Unable to load data model file"</span><span class="p">)</span>
+<span class="p">}</span>
+<span class="kt">PersistentContainer</span><span class="p">(</span><span class="nv">name</span><span class="p">:</span> <span class="s">"Your-DataModel-File-Name"</span><span class="p">,</span> <span class="nv">managedObjectModel</span><span class="p">:</span> <span class="n">model</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h2 id="creating-coredata-model-objects-problem">Creating CoreData Model Objects problem</h2>
+<p>Well, I was creating my core data object the same way I used to in apps but I faced runtime crashes and got errors like this:</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="nv">object</span> <span class="o">=</span> <span class="kt">MyObject</span><span class="p">(</span><span class="nv">context</span><span class="p">:</span> <span class="n">container</span><span class="o">.</span><span class="n">viewContext</span><span class="p">)</span>
+<span class="c1">//Error!: An NSManagedObject of class 'ModularAppKit.ArticleMO' must have a valid NSEntityDescription.</span>
+</code></pre></div></div>
+<p>Which honestly, the error description wasn’t exactly pointing out what the actual cause of the error was. So I initialized my object in this way</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">let</span> <span class="nv">entityDescription</span> <span class="o">=</span> <span class="kt">NSEntityDescription</span><span class="o">.</span><span class="nf">entity</span><span class="p">(</span><span class="nv">forEntityName</span><span class="p">:</span> <span class="s">"Your Entity"</span><span class="p">,</span> <span class="nv">in</span><span class="p">:</span> <span class="n">managedObjectContext</span><span class="p">)</span>  
+<span class="k">let</span> <span class="nv">object</span> <span class="o">=</span> <span class="kt">MyObject</span><span class="p">(</span><span class="nv">entity</span><span class="p">:</span> <span class="n">entityDescription</span><span class="o">!</span><span class="p">,</span> <span class="nv">insertInto</span><span class="p">:</span> <span class="n">managedObjectContext</span><span class="p">)</span>
+</code></pre></div></div>
+<p>Everything went back to normal, and it seemed that manually adding NSEntityDescription fixed the issue. However, <strong>the actual reason of this problem was something more general</strong>, so another error appeared in a more bizarre format later on when I attempted to fetch data.</p>
+<h2 id="problem-with-fetch-requesting-stuff">Problem with “Fetch request”ing stuff</h2>
+<p>I had this run time error that caused the application to crash when I wanted to query a bunch of objects with a simple fetch request. The error description this time was TOTALLY misleading; it was complaining that my Core Data objects don’t have the correct type and they are <code class="language-plaintext highlighter-rouge">NSManagedObject</code>s (???)</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>**NSArray element failed to match the Swift Array Element type**
+**Expected MyObject but found NSManagedObject**
+
+// MyObject is the name of my Entity class
+</code></pre></div></div>
+
+<p>After going through a lots of hassles, it turned out the solution for this one was to go to your Core data Model Editor, in the right Xcode right panel, under entity class section, <mark>explicitly write your package name inside the model field</mark> instead of “Current Product Module” which is the default value!</p>
+
+<p><img src="https://shaysugg.github.io//assets/posts/SetupCoreDataInPackages-ModuleName.png" alt="2024-05-19-SetupCoreDataInPackages" />
+<em>Here the module name is set to ArticlesKit, which is the name of the package.</em></p>
+
+<p>Changing this field also <strong>fix the previous problem related to NSManagedObject creation</strong>. You no longer required to specify the entity description.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Well, that’s it for now. Currently, everything is working fine. If I encounter another tricky issue I will update this post. In retrospective, I think it was worth all the hassles. Moving all of my Core Data logic into my CRUD package feels so nice right now, and as a result, my main app is capable of working with any form of local database, which is really cool!</p>
+
+<p>If you have any questions, similar experiences or faced another issue when  setting up your Core Data inside a package, feel free to reach out to me at my <a href="https://github.com/shaysugg">Github</a> or <a href="https://www.linkedin.com/in/shayan-barghaman/)">LinkedIn</a>. I would be happy to discuss.</p>
+
+<p>Thanks For reading! 
+Cheers!</p>
+
+
+        </div>
+    </main>
+
+    
+    </body>
+</html>
