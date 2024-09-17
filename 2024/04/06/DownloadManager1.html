@@ -4,13 +4,9 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <title>
-    
-    Download Manager - Part 1 - URLSession and Swift modern concurrency
-    
-  </title>
-
+  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
   <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Download Manager - Part 1 - URLSession and Swift modern concurrency | devbashayan</title>
 <meta name="generator" content="Jekyll v4.3.3" />
 <meta property="og:title" content="Download Manager - Part 1 - URLSession and Swift modern concurrency" />
 <meta name="author" content="Shayan B" />
@@ -30,13 +26,14 @@
 {"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan B"},"dateModified":"2024-04-06T00:00:00+03:30","datePublished":"2024-04-06T00:00:00+03:30","description":"Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like AFNetworking or Alamofire. However over the past years it has its improvements. Two of its notable improvements can be the Combine and async await equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others. Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this: ```swift struct DownloadManager { let downloadSession = URLSession.shared","headline":"Download Manager - Part 1 - URLSession and Swift modern concurrency","image":"https://shaysugg.github.io//assets/DownloadManager1.png","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/04/06/DownloadManager1.html"},"url":"https://shaysugg.github.io//2024/04/06/DownloadManager1.html"}</script>
 <!-- End Jekyll SEO tag -->
 
-  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
+  
+  
 
   <link rel="shortcut icon" type="image/x-icon" href="/./logo.png" />
   <link rel="stylesheet" href="https://shaysugg.github.io//assets/css/main.css" />
-</head><body a="auto">
+</head><body>
     <main class="page-content" aria-label="Content">
-        <div class="w">
+        <div class="wrapper">
             <a href="https://shaysugg.github.io/">home</a>
 <h1>Download Manager - Part 1 - URLSession and Swift modern concurrency</h1>
 <p>Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like <a href="https://github.com/AFNetworking/AFNetworking">AFNetworking</a> or <a href="https://github.com/Alamofire/Alamofire">Alamofire</a>. However over the past years it has its improvements. Two of its notable improvements can be the Combine and <code class="language-plaintext highlighter-rouge">async await</code> equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others.
@@ -211,7 +208,5 @@ If you’re bored with all of this implementation details and want to instantly 
 
         </div>
     </main>
-
-    
     </body>
 </html>

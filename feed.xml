@@ -1,4 +1,154 @@
-<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.3">Jekyll</generator><link href="https://shaysugg.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://shaysugg.github.io//" rel="alternate" type="text/html" /><updated>2024-07-24T15:05:06+03:30</updated><id>https://shaysugg.github.io//feed.xml</id><title type="html">devbashayan</title><subtitle>Hi and welcome! My name is Shayan and I&apos;m a software developer, Mostly develop apps and tools for iOS and macOS. </subtitle><author><name>Riccardo Graziosi</name></author><entry><title type="html">Use Combine to implement a Github OAuth authenticator</title><link href="https://shaysugg.github.io//2024/07/23/GithubAuthenticatorWithCombine.html" rel="alternate" type="text/html" title="Use Combine to implement a Github OAuth authenticator" /><published>2024-07-23T00:00:00+03:30</published><updated>2024-07-23T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/07/23/GithubAuthenticatorWithCombine</id><content type="html" xml:base="https://shaysugg.github.io//2024/07/23/GithubAuthenticatorWithCombine.html"><![CDATA[<p>It’s been a couple of years since the introduction of async await in Swift and the debates between usage of Swift’s modern concurrency and combine to address asynchronous requirements have become quite controversial. While using async await is usually more readable and understandable, especially for developers with no prior experience in reactive programming (Can’t truly say I have). However sometimes combine truly shines, particularly when it comes to introducing understandable pipelines in your app.</p>
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.3">Jekyll</generator><link href="https://shaysugg.github.io//feed.xml" rel="self" type="application/atom+xml" /><link href="https://shaysugg.github.io//" rel="alternate" type="text/html" /><updated>2024-09-17T11:44:45+03:30</updated><id>https://shaysugg.github.io//feed.xml</id><title type="html">devbashayan</title><subtitle>Hi and welcome! My name is Shayan and I&apos;m a software developer, Mostly develop apps and tools for iOS and macOS. </subtitle><author><name>Riccardo Graziosi</name></author><entry><title type="html">Three analytics problem</title><link href="https://shaysugg.github.io//2024/09/15/ThreeAnalyticsProblem.html" rel="alternate" type="text/html" title="Three analytics problem" /><published>2024-09-15T00:00:00+03:30</published><updated>2024-09-15T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/09/15/ThreeAnalyticsProblem</id><content type="html" xml:base="https://shaysugg.github.io//2024/09/15/ThreeAnalyticsProblem.html"><![CDATA[<p>User accusation can be hard, especially if you’re in a small team or if you’re on your own. Often you find yourself worrying why you are not getting enough users. Why users are churning your app. Gathering information about users and their behaviors can be a good starting point, but there is no guarantee that with more data you can address the challenges more appropriately.</p>
+
+<p>This often introduces dilemmas and complexities, especially in management, data analysis, and growth aspects of your team regarding the strategies should be taken to gather these information. On the development side, the complexities can also be intense; Working with third-parties analytics platforms, each with their own convections, rapid changes in the tools and dependencies that being used and sometimes you want to combine multiple analytics tools to achieve your goals. The question becomes: How you can develop a resilient code that can more easily tolerate these changes?</p>
+
+<p>I had to develop a multi-platform analytics system with three dependencies at work a while ago, and I developed a simple solution that I believe can be a good starting point for handling these cases.</p>
+<h2 id="analytics-system-that-works-with-multiple-platforms">Analytics system that works with multiple platforms</h2>
+<p>Okay, let’s say for an action that the user takes in your app you need to send several events to multiple platforms. Assuming you have a really rational base code, something like this</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">purchaseButtonTapped</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">//some relevant action for purchasing</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>And unfortunately it will turn into</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">func</span> <span class="nf">purchaseButtonTapped</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">//some relevant action for purchasing</span>
+ 
+  <span class="c1">//send and event to the platform A which requires an id:     string and a value: [string: Any]</span>
+
+  <span class="c1">//send and event to the platform B which requires an id: string and a value: string</span>
+
+  <span class="c1">//send and event to the platform C that has its own event object like;</span>
+  <span class="c1">//let event = System3Event()</span>
+  <span class="c1">//event.data = [purchaseID: Price]</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>This can immediately make the code unreadable and introduce many unrelated logics. Since all of these platforms have their own convections, It’s possible to end up with event handling code that’s twice as much as your logic code. And what if suddenly you’re told to change one analytics platform to another with different convections. It’s pretty much obvious that you need to move this code somewhere else, plus, you need some abstractions there to handle all of these pervasive code.</p>
+<h2 id="defining-events">Defining events</h2>
+<p>Let’s start defining a protocol for all of our events</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protocol</span> <span class="kt">ReportableEvent</span> <span class="p">{}</span>
+</code></pre></div></div>
+<p>And as an example let’s define a purchase and signup event and conform them to <code class="language-plaintext highlighter-rouge">ReportableEvent</code>. Note that there would be no analytics platform convention here.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">SignUpEvent</span><span class="p">:</span> <span class="kt">ReportableEvent</span> <span class="p">{</span>
+  <span class="kd">enum</span> <span class="kt">AuthenticationPlatform</span> <span class="p">{</span>
+    <span class="c1">//...</span>
+  <span class="p">}</span>
+  <span class="k">let</span> <span class="nv">userID</span><span class="p">:</span> <span class="kt">String</span>
+  <span class="k">let</span> <span class="nv">authenticationPlatform</span><span class="p">:</span> <span class="kt">AuthenticationPlatform</span>
+<span class="p">}</span>
+
+<span class="kd">struct</span> <span class="kt">PurchaseEvent</span><span class="p">:</span> <span class="kt">ReportableEvent</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">userID</span><span class="p">:</span> <span class="kt">String</span>
+  <span class="k">let</span> <span class="nv">price</span><span class="p">:</span> <span class="kt">Double</span>
+  <span class="k">let</span> <span class="nv">discount</span><span class="p">:</span> <span class="kt">Double</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Finally let’s define an event handler that accepts and handles all these events under ReportableEvent type. The main job of it is to encapsulate all of those analytics platforms’ codes and prevent it from spreading throughout our code.</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">import</span> <span class="kt">AnalyticsPlatformA</span>
+<span class="kd">import</span> <span class="kt">AnalyticsPlatformB</span>
+<span class="c1">//... more analytics systems</span>
+
+<span class="kd">struct</span> <span class="kt">EventHandler</span> <span class="p">{</span>
+  <span class="k">let</span> <span class="nv">analyticsPlatformA</span><span class="p">:</span> <span class="kt">AnalyticsPlatformA</span>
+  <span class="k">let</span> <span class="nv">analyticsPlatformB</span><span class="p">:</span> <span class="kt">AnalyticsPlatformB</span>
+  <span class="c1">//....</span>
+  
+  <span class="kd">func</span> <span class="nf">setup</span><span class="p">()</span> <span class="p">{</span>
+    <span class="c1">//here you set up analytics platforms dependencies</span>
+  <span class="p">}</span>
+  
+  <span class="kd">func</span> <span class="nf">handleEvent</span><span class="p">(</span><span class="kd">some</span> <span class="kt">ReportableEvent</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">// two main tasks here</span>
+    <span class="c1">// create each analytics platform specific data</span>
+    <span class="c1">// call analytics platform functions  </span>
+    <span class="c1">// 🔴 seems a bit problematic, isn't it?</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<h2 id="platforms-dedicated-events">Platforms dedicated events</h2>
+<p>Well, currently there are two problems with our event handling system.</p>
+
+<p>1) Events can have their own specific data, and the question is whether we should map that data to analytics platforms’ data in the <code class="language-plaintext highlighter-rouge">handleEvent</code> method?</p>
+
+<p>2) Sometimes we only want to send certain events to the specific platforms. For example purchasing should be sent to analytics platform A and B but sign up event only needs to be sent to platformA.</p>
+
+<p>While it’s possible to write if else statements with gigantic conditions that checks the all the possible events and decide their corresponding platform and required data, it is pretty obvious that it can’t be scaled.</p>
+
+<p>Additionally, one other criteria for our event system is to keep the analytics platforms-related code in its own domain and separated from the definition of events.</p>
+
+<p>With the above conditions in mind let’s define the platform compatibilities as protocols like;</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">protocol</span> <span class="kt">EventForAnalyticsPlatformA</span><span class="p">:</span> <span class="kt">ReportableEvent</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">platformAData</span><span class="p">:</span> <span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="p">[</span><span class="kt">String</span><span class="p">:</span> <span class="kt">Any</span><span class="p">])</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">protocol</span> <span class="kt">EventForAnalyticsPlatformB</span><span class="p">:</span> <span class="kt">ReportableEvent</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">platformBData</span><span class="p">:</span> <span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int</span><span class="p">)</span> <span class="p">{</span> <span class="k">get</span> <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>And then extend our event definitions to conform to their corresponding platforms’ requirements;</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//we want to send SignUpEvent to AnalyticsPlatformA and AnalyticsPlatformB</span>
+<span class="kd">extension</span> <span class="kt">SignUpEvent</span><span class="p">:</span> <span class="kt">EventForAnalyticsPlatformA</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">platformAData</span> <span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="p">[</span><span class="kt">String</span><span class="p">:</span> <span class="kt">Any</span><span class="p">])</span> <span class="p">{</span>
+    <span class="c1">//...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">extension</span> <span class="kt">SignUpEvent</span><span class="p">:</span> <span class="kt">EventForAnalyticsPlatformB</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">platformBData</span><span class="p">:</span> <span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">//...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">//we want to send purchase event only to AnalyticsPlatformB</span>
+<span class="kd">struct</span> <span class="kt">PurchaseEvent</span><span class="p">:</span> <span class="kt">EventForAnalyticsPlatformB</span> <span class="p">{</span>
+  <span class="k">var</span> <span class="nv">platformBData</span><span class="p">:</span> <span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int</span><span class="p">)</span> <span class="p">{</span>
+    <span class="c1">//...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>As a result the <code class="language-plaintext highlighter-rouge">handleEvent</code> method of our event handler is going to have a simple implementation like;</p>
+<div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">//let's assume our dependencies handle their events like</span>
+<span class="kd">class</span> <span class="kt">AnalyticsPlatformA</span> <span class="p">{</span>
+  <span class="kd">func</span> <span class="nf">handleEventWith</span><span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="p">[</span><span class="kt">String</span><span class="p">:</span> <span class="kt">Any</span><span class="p">])</span> <span class="p">{</span> <span class="c1">//... }</span>
+<span class="p">}</span>
+<span class="kd">class</span> <span class="kt">AnalyticsPlatformA</span> <span class="p">{</span>
+  <span class="kd">func</span> <span class="nf">event</span><span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="kt">String</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="kt">Int</span><span class="p">)</span> <span class="p">{</span> <span class="c1">//... }</span>
+<span class="p">}</span>
+
+<span class="c1">//then the `handleEvent` of our event handler going to be like</span>
+<span class="kd">struct</span> <span class="kt">EventHandler</span> <span class="p">{</span>
+<span class="c1">//...</span>
+<span class="kd">func</span> <span class="nf">handleEvent</span><span class="p">(</span><span class="kd">some</span> <span class="kt">ReportableEvent</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">switch</span> <span class="n">event</span> <span class="p">{</span>
+    <span class="k">case</span> <span class="k">let</span> <span class="nv">event</span> <span class="k">as</span> <span class="kt">EventForAnalyticsPlatformA</span><span class="p">:</span>
+      <span class="n">analyticsPlatformA</span><span class="o">.</span><span class="nf">handleEventWith</span><span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">case</span> <span class="k">let</span> <span class="nv">event</span> <span class="k">as</span> <span class="kt">EventForAnalyticsPlatformB</span><span class="p">:</span>
+      <span class="n">analyticsPlatformB</span><span class="o">.</span><span class="nf">event</span><span class="p">(</span><span class="nv">id</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="nv">value</span><span class="p">:</span> <span class="n">event</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">default</span><span class="p">:</span>
+      <span class="k">break</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<p>Ultimately we end up with this nice modular structure</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>-main application
+  --events definations
+    ---purchase event
+    ---signup event
+    ---...
+-events handler
+  --event handler
+    --events +
+      --purchase event + platformA
+      --signup event + platformBA
+      --signup event + platformB
+    --dependencies
+</code></pre></div></div>
+<p>Note that right now we can easily put the event handler, the platform-related code of the events, and all the analytics third-party dependencies into its own package if we want to follow a more modular practices in our code.</p>
+<h2 id="conclusion">Conclusion</h2>
+<p>Well, I hope this way of encapsulating analytics-related code can make working with our main code much easier and make our Data analysis colleagues happy. As always you can find me on <a href="https://github.com/shaysugg">Github</a> and <a href="&lt;https://www.linkedin.com/in/shayan-barghaman/">LinkedIn</a>.</p>
+
+<p>Thanks for reading,
+Cheers!</p>]]></content><author><name>Shayan B</name></author><summary type="html"><![CDATA[User accusation can be hard, especially if you’re in a small team or if you’re on your own. Often you find yourself worrying why you are not getting enough users. Why users are churning your app. Gathering information about users and their behaviors can be a good starting point, but there is no guarantee that with more data you can address the challenges more appropriately.]]></summary><media:thumbnail xmlns:media="http://search.yahoo.com/mrss/" url="https://shaysugg.github.io/" /><media:content medium="image" url="https://shaysugg.github.io/" xmlns:media="http://search.yahoo.com/mrss/" /></entry><entry><title type="html">Use Combine to implement a Github OAuth authenticator</title><link href="https://shaysugg.github.io//2024/07/23/GithubAuthenticatorWithCombine.html" rel="alternate" type="text/html" title="Use Combine to implement a Github OAuth authenticator" /><published>2024-07-23T00:00:00+03:30</published><updated>2024-07-23T00:00:00+03:30</updated><id>https://shaysugg.github.io//2024/07/23/GithubAuthenticatorWithCombine</id><content type="html" xml:base="https://shaysugg.github.io//2024/07/23/GithubAuthenticatorWithCombine.html"><![CDATA[<p>It’s been a couple of years since the introduction of async await in Swift and the debates between usage of Swift’s modern concurrency and combine to address asynchronous requirements have become quite controversial. While using async await is usually more readable and understandable, especially for developers with no prior experience in reactive programming (Can’t truly say I have). However sometimes combine truly shines, particularly when it comes to introducing understandable pipelines in your app.</p>
 
 <p>Recently I had to implement a GitHub authenticator for a small utility tool and, I found that some features of the Combine were perfectly suitable for it. First let’s take a quick review of how Github Oath authentication works.</p>
 <h2 id="github-oath">Github Oath</h2>

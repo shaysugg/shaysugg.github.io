@@ -4,13 +4,9 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <title>
-    
-    Setting up Core Data in a package
-    
-  </title>
-
+  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
   <!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Setting up Core Data in a package | devbashayan</title>
 <meta name="generator" content="Jekyll v4.3.3" />
 <meta property="og:title" content="Setting up Core Data in a package" />
 <meta name="author" content="Shayan B" />
@@ -30,13 +26,14 @@
 {"@context":"https://schema.org","@type":"BlogPosting","author":{"@type":"Person","name":"Shayan B"},"dateModified":"2024-05-19T00:00:00+03:30","datePublished":"2024-05-19T00:00:00+03:30","description":"There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face. Setting up Persistent Container In your packages, you should manually setup the CoreData persistent container. In order to do this, you need a path to your Data Model file. For the applications, we tend to use Bundle.main.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) But when you’re in a package, you should use module bundle instead of main like: Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;) After that, you need to move your Data Model files into a specific directory called Resources. If you don’t have such a directory, create one in this hierarchical format: &lt;YourPackageName&gt; Sources &lt;YourPackageName&gt; Resources More information about packages resource management can be found at: Building resource with a Swift package. If everything goes correctly, you should be able to instantiate your Persistent Container like this: guard let url = Bundle.module.url(forResource: &quot;Your-DataModel-File-Name&quot;, withExtension: &quot;momd&quot;), let model = NSManagedObjectModel(contentsOf: url) else { fatalError(&quot;Unable to load data model file&quot;) } PersistentContainer(name: &quot;Your-DataModel-File-Name&quot;, managedObjectModel: model)","headline":"Setting up Core Data in a package","image":"https://shaysugg.github.io/","mainEntityOfPage":{"@type":"WebPage","@id":"https://shaysugg.github.io//2024/05/19/SetupCoreDataInPackages.html"},"url":"https://shaysugg.github.io//2024/05/19/SetupCoreDataInPackages.html"}</script>
 <!-- End Jekyll SEO tag -->
 
-  <link type="application/atom+xml" rel="alternate" href="https://shaysugg.github.io//feed.xml" title="devbashayan" />
+  
+  
 
   <link rel="shortcut icon" type="image/x-icon" href="/./logo.png" />
   <link rel="stylesheet" href="https://shaysugg.github.io//assets/css/main.css" />
-</head><body a="auto">
+</head><body>
     <main class="page-content" aria-label="Content">
-        <div class="w">
+        <div class="wrapper">
             <a href="https://shaysugg.github.io/">home</a>
 <h1>Setting up Core Data in a package</h1>
 <p>There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face.</p>
@@ -98,7 +95,5 @@ Cheers!</p>
 
         </div>
     </main>
-
-    
     </body>
 </html>
