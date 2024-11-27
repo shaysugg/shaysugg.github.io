@@ -27,7 +27,6 @@ h1,
 h2,
 h3,
 h4 {
-  color: var(--secondery-color);
   line-height: 1.9rem;
 }
 
@@ -78,12 +77,16 @@ blockquote p {
 
 a {
   color: var(--primary-color);
-  text-decoration: none;
 }
 
 mark {
   background-color: var(--primary-container-color);
   color: var(--text-color);
+}
+
+.post-meta {
+  color: var(--secondery-color);
+  text-align: right;
 }
 
 /*# sourceMappingURL=main.css.map */

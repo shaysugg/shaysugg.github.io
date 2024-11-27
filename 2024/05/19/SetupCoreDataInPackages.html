@@ -35,8 +35,15 @@
     <main class="page-content" aria-label="Content">
         <div class="wrapper">
             <a href="https://shaysugg.github.io/">home</a>
-<h1>Setting up Core Data in a package</h1>
-<p>There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face.</p>
+
+<article>
+    <p class="post-meta">
+        <time datetime="2024-05-19 00:00:00 +0330">2024-05-19</time>
+    </p>
+
+    <h1>Setting up Core Data in a package</h1>
+
+    <p>There are couple of issues that I’ve encountered recently when I wanted to move all my CoreData logics from the main application to a separate packages. I couldn’t find any specific place that addressed all of these problems. Most of the solutions and workarounds that I found were buried in the stack overflow answers or Apple developer forums discussions. So here I gather three major problems that are quite common to face.</p>
 <h2 id="setting-up-persistent-container">Setting up Persistent Container</h2>
 <p>In your packages, you should manually setup the CoreData persistent container. In order to do this, you need a path to your Data Model file. For the applications, we tend to use</p>
 <div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">Bundle</span><span class="o">.</span><span class="n">main</span><span class="o">.</span><span class="nf">url</span><span class="p">(</span><span class="nv">forResource</span><span class="p">:</span> <span class="s">"Your-DataModel-File-Name"</span><span class="p">,</span> <span class="nv">withExtension</span><span class="p">:</span> <span class="s">"momd"</span><span class="p">)</span>
@@ -93,6 +100,7 @@ If everything goes correctly, you should be able to instantiate your Persistent 
 Cheers!</p>
 
 
+</article>
         </div>
     </main>
     </body>

@@ -35,8 +35,15 @@
     <main class="page-content" aria-label="Content">
         <div class="wrapper">
             <a href="https://shaysugg.github.io/">home</a>
-<h1>Download Manager - Part 3 - Background downloads</h1>
-<p>In the past series (<a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">part1</a>, <a href="https://shaysugg.github.io//2024/04/21/DownloadManager2.html">part2</a>) we went through how we can build a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads.</p>
+
+<article>
+    <p class="post-meta">
+        <time datetime="2024-04-23 00:00:00 +0330">2024-04-23</time>
+    </p>
+
+    <h1>Download Manager - Part 3 - Background downloads</h1>
+
+    <p>In the past series (<a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">part1</a>, <a href="https://shaysugg.github.io//2024/04/21/DownloadManager2.html">part2</a>) we went through how we can build a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that has modern concurrency-friendly apis and capable of pausing and resuming failed and canceled downloads.</p>
 
 <p>In this article we will take a look at how we can add background download capability into our <code class="language-plaintext highlighter-rouge">DownloadManager</code>. Background download support is crucial for downloading large files. Many users may exit our app while a downloads is in progress, causing our app to enter a suspended state However users will expect the ongoing downloads to resume seamlessly. Fortunately supporting background downloads is not overly complicated, So let’s see how we we can implement this feature.</p>
 <h2 id="background-download-capability">Background Download Capability</h2>
@@ -127,6 +134,7 @@
 
 
 
+</article>
         </div>
     </main>
     </body>

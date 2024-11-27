@@ -35,8 +35,15 @@
     <main class="page-content" aria-label="Content">
         <div class="wrapper">
             <a href="https://shaysugg.github.io/">home</a>
-<h1>Download Manager - Part 2 - Pausing and resuming download tasks</h1>
-<p>In the <a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">previous article</a> I explained how I built a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally.</p>
+
+<article>
+    <p class="post-meta">
+        <time datetime="2024-04-21 00:00:00 +0330">2024-04-21</time>
+    </p>
+
+    <h1>Download Manager - Part 2 - Pausing and resuming download tasks</h1>
+
+    <p>In the <a href="https://shaysugg.github.io//2024/04/06/DownloadManager1.html">previous article</a> I explained how I built a <code class="language-plaintext highlighter-rouge">DownloadManager</code> that not only capable of downloading files, but also shows their progress. I also tried to make its methods more compatible with modern concurrency. In other words, tried to keep those delegate methods that is used for tracking download progress, internally.</p>
 
 <p>It’s certainly important, especially for downloading large files, to have the ability to pause and resume downloads. Additionally since downloads may fail sometimes, we should be able to check if it’s possible to resume the download from the point it failed, instead of starting a completely new download from the beginning.
 According to the <a href="https://developer.apple.com/documentation/foundation/url_loading_system/pausing_and_resuming_downloads">docs</a>, when a download is canceled it <strong>may</strong> return resume data. This data can be received as a closure or as a result of async await cancellation. By storing this data, we will be able to resume the download later.</p>
@@ -123,6 +130,7 @@ Cheers!</p>
 
 
 
+</article>
         </div>
     </main>
     </body>

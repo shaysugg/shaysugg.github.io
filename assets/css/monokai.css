@@ -118,7 +118,7 @@
 
 /* Literal.String */
 .highlight .na {
-    color: #a6e22e
+    color: #ffb4ab
 }
 
 /* Name.Attribute */
@@ -128,7 +128,7 @@
 
 /* Name.Builtin */
 .highlight .nc {
-    color: #a6e22e
+    color: #ffb4ab
 }
 
 /* Name.Class */
@@ -138,7 +138,7 @@
 
 /* Name.Constant */
 .highlight .nd {
-    color: #a6e22e
+    color: #ffb4ab
 }
 
 /* Name.Decorator */
@@ -148,12 +148,12 @@
 
 /* Name.Entity */
 .highlight .ne {
-    color: #a6e22e
+    color: #ffb4ab
 }
 
 /* Name.Exception */
 .highlight .nf {
-    color: #a6e22e
+    color: #ffb4ab
 }
 
 /* Name.Function */
@@ -168,7 +168,7 @@
 
 /* Name.Namespace */
 .highlight .nx {
-    color: #a6e22e
+    color: #ffb4ab
 }
 
 /* Name.Other */
@@ -312,7 +312,7 @@
 
 /* Generic.Deleted & Diff Deleted */
 .highlight .gi {
-    color: #a6e22e;
+    color: #ffb4ab;
 }
 
 /* Generic.Inserted & Diff Inserted */

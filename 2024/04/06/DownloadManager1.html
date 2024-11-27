@@ -35,8 +35,15 @@
     <main class="page-content" aria-label="Content">
         <div class="wrapper">
             <a href="https://shaysugg.github.io/">home</a>
-<h1>Download Manager - Part 1 - URLSession and Swift modern concurrency</h1>
-<p>Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like <a href="https://github.com/AFNetworking/AFNetworking">AFNetworking</a> or <a href="https://github.com/Alamofire/Alamofire">Alamofire</a>. However over the past years it has its improvements. Two of its notable improvements can be the Combine and <code class="language-plaintext highlighter-rouge">async await</code> equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others.
+
+<article>
+    <p class="post-meta">
+        <time datetime="2024-04-06 00:00:00 +0330">2024-04-06</time>
+    </p>
+
+    <h1>Download Manager - Part 1 - URLSession and Swift modern concurrency</h1>
+
+    <p>Apparently URLSession used to be so difficult to work with. Many people preferred using third-party network tools like <a href="https://github.com/AFNetworking/AFNetworking">AFNetworking</a> or <a href="https://github.com/Alamofire/Alamofire">Alamofire</a>. However over the past years it has its improvements. Two of its notable improvements can be the Combine and <code class="language-plaintext highlighter-rouge">async await</code> equivalent APIs. They replace the closure based APIs which can become error prone in advance usages. After all, nobody wants to deal with those nested closures inside each others.
 Despite the improvements, I faced a few challenges while building a download manager class with a modern async await APIs in mind. Initially, I came up with something like this:</p>
 <div class="language-swift highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">struct</span> <span class="kt">DownloadManager</span> <span class="p">{</span>
   <span class="k">let</span> <span class="nv">downloadSession</span> <span class="o">=</span> <span class="kt">URLSession</span><span class="o">.</span><span class="n">shared</span>
@@ -206,6 +213,7 @@ If you’re bored with all of this implementation details and want to instantly 
 <p>Cheers!</p>
 
 
+</article>
         </div>
     </main>
     </body>
